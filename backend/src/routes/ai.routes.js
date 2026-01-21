@@ -19,9 +19,15 @@ router.post(
       throw new ApiError(400, "Plan is required");
     }
 
-    const response = await evaluatePlan(problem, plan);
-
-    return res.status(200).json(new ApiResponse(200, response, "Mentor feedback generated"));
+    // Use streaming for real-time response
+    try {
+      await evaluatePlan(problem, plan, res);
+    } catch (error) {
+      console.error('Streaming error:', error.message);
+      if (!res.headersSent) {
+        res.status(500).json(new ApiResponse(500, null, "Error generating feedback"));
+      }
+    }
   })
 );
 

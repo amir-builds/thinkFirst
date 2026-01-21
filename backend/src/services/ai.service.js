@@ -11,25 +11,45 @@ const systemPrompt = fs.readFileSync(
   'utf-8'
 );
 
-export async function evaluatePlan(problem, plan) {
+export async function evaluatePlan(problem, plan, res = null) {
+  try {
+    const isStreaming = res !== null;
+    const requestPayload = {
+      model: process.env.DEEPSEEK_MODEL,
+      messages: [
+        {
+          role: 'system',
+          content: systemPrompt
+        },
+        {
+          role: 'user',
+          content: `Problem:\n${problem}\n\nStudent's Plan:\n${plan}`
+        }
+      ],
+      temperature: 0.2,
+      max_tokens: 120,
+      stream: isStreaming
+    };
+
+    if (isStreaming) {
+      return await streamResponse(requestPayload, res);
+    } else {
+      return await getNonStreamResponse(requestPayload);
+    }
+  } catch (error) {
+    console.error('AI Service Error:', error.message);
+    return {
+      readyToCode: false,
+      message: "Try rephrasing your approach in simple words."
+    };
+  }
+}
+
+async function getNonStreamResponse(requestPayload) {
   try {
     const response = await axios.post(
       `${process.env.OPENROUTER_BASE_URL}`,
-      {
-        model: process.env.DEEPSEEK_MODEL,
-        messages: [
-          {
-            role: 'system',
-            content: systemPrompt
-          },
-          {
-            role: 'user',
-            content: `Problem:\n${problem}\n\nStudent's Plan:\n${plan}`
-          }
-        ],
-        temperature: 0.2,
-        max_tokens: 120
-      },
+      requestPayload,
       {
         headers: {
           'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
@@ -41,23 +61,105 @@ export async function evaluatePlan(problem, plan) {
     const aiMessage = response.data.choices[0].message.content;
     
     const readySignals = [
-  'ready to try coding',
-  'ready to code',
-  'you can now try coding',
-  'you can try coding now'
-];
-const readyToCode = readySignals.some(signal =>
-  aiMessage.toLowerCase().includes(signal)
-);
+      'ready to try coding',
+      'ready to code',
+      'you can now try coding',
+      'you can try coding now'
+    ];
+    const readyToCode = readySignals.some(signal =>
+      aiMessage.toLowerCase().includes(signal)
+    );
 
     return {
       readyToCode,
       message: aiMessage
     };
   } catch (error) {
-    return {
-      readyToCode: false,
-      message: "Try rephrasing your approach in simple words."
-    };
+    console.error('Non-stream API Error:', error.message);
+    throw error;
+  }
+}
+
+async function streamResponse(requestPayload, res) {
+  try {
+    const response = await axios.post(
+      `${process.env.OPENROUTER_BASE_URL}`,
+      requestPayload,
+      {
+        headers: {
+          'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        responseType: 'stream'
+      }
+    );
+
+    let fullMessage = '';
+    const readySignals = [
+      'ready to try coding',
+      'ready to code',
+      'you can now try coding',
+      'you can try coding now'
+    ];
+
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Transfer-Encoding', 'chunked');
+
+    return new Promise((resolve, reject) => {
+      response.data.on('data', (chunk) => {
+        const lines = chunk.toString().split('\n');
+        
+        lines.forEach(line => {
+          if (line.startsWith('data: ')) {
+            try {
+              const jsonStr = line.slice(6);
+              if (jsonStr === '[DONE]') {
+                // Stream complete
+                const readyToCode = readySignals.some(signal =>
+                  fullMessage.toLowerCase().includes(signal)
+                );
+                
+                res.write(JSON.stringify({
+                  type: 'complete',
+                  readyToCode,
+                  fullMessage
+                }) + '\n');
+                resolve({
+                  readyToCode,
+                  message: fullMessage
+                });
+                return;
+              }
+
+              const data = JSON.parse(jsonStr);
+              if (data.choices && data.choices[0].delta && data.choices[0].delta.content) {
+                const content = data.choices[0].delta.content;
+                fullMessage += content;
+
+                // Send chunk to client in real-time
+                res.write(JSON.stringify({
+                  type: 'chunk',
+                  content
+                }) + '\n');
+              }
+            } catch (error) {
+              console.error('Error parsing stream chunk:', error.message);
+            }
+          }
+        });
+      });
+
+      response.data.on('error', (error) => {
+        console.error('Stream error:', error.message);
+        reject(error);
+      });
+
+      response.data.on('end', () => {
+        res.end();
+      });
+    });
+  } catch (error) {
+    console.error('Streaming API Error:', error.message);
+    throw error;
   }
 }
