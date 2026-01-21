@@ -1,0 +1,90 @@
+# ================================
+# Judge0 Docker Compose (Standalone)
+# ================================
+# Run this separately: docker compose -f docker-compose.judge0.yml up -d
+# 
+# This sets up Judge0 code execution engine independently
+# The backend connects to it via http://localhost:2358
+
+services:
+  judge0:
+    image: judge0/judge0:1.13.1
+    ports:
+      - "2358:2358"
+    privileged: true
+    cap_add:
+      - SYS_ADMIN
+      - SYS_PTRACE
+    security_opt:
+      - seccomp:unconfined
+    environment:
+      - REDIS_HOST=judge0-redis
+      - POSTGRES_HOST=judge0-db
+      - POSTGRES_DB=judge0
+      - POSTGRES_USER=judge0
+      - POSTGRES_PASSWORD=judge0password
+      - DISABLE_DATABASE_SYNC=false
+      - ENABLE_WAIT_RESULT=true
+      - ENABLE_BATCHED_SUBMISSIONS=true
+      - AUTHN_HEADER=
+      - AUTHN_TOKEN=
+      - AUTHZ_HEADER=
+      - AUTHZ_TOKEN=
+    depends_on:
+      - judge0-db
+      - judge0-redis
+    restart: unless-stopped
+    networks:
+      - judge0-network
+
+  judge0-worker:
+    image: judge0/judge0:1.13.1
+    command: ["./scripts/workers"]
+    privileged: true
+    cap_add:
+      - SYS_ADMIN
+      - SYS_PTRACE
+    security_opt:
+      - seccomp:unconfined
+    environment:
+      - REDIS_HOST=judge0-redis
+      - POSTGRES_HOST=judge0-db
+      - POSTGRES_DB=judge0
+      - POSTGRES_USER=judge0
+      - POSTGRES_PASSWORD=judge0password
+    depends_on:
+      - judge0
+      - judge0-db
+      - judge0-redis
+    restart: unless-stopped
+    networks:
+      - judge0-network
+
+  judge0-db:
+    image: postgres:13
+    environment:
+      - POSTGRES_DB=judge0
+      - POSTGRES_USER=judge0
+      - POSTGRES_PASSWORD=judge0password
+    volumes:
+      - judge0-postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - judge0-network
+
+  judge0-redis:
+    image: redis:6
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - judge0-redis-data:/data
+    restart: unless-stopped
+    networks:
+      - judge0-network
+
+networks:
+  judge0-network:
+    driver: bridge
+
+volumes:
+  judge0-postgres-data:
+  judge0-redis-data:
