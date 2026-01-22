@@ -95,6 +95,7 @@ async function streamResponse(requestPayload, res) {
     );
 
     let fullMessage = '';
+    let buffer = '';
     const readySignals = [
       'ready to try coding',
       'ready to code',
@@ -107,12 +108,25 @@ async function streamResponse(requestPayload, res) {
 
     return new Promise((resolve, reject) => {
       response.data.on('data', (chunk) => {
-        const lines = chunk.toString().split('\n');
+        // Append chunk to buffer
+        buffer += chunk.toString();
         
-        lines.forEach(line => {
+        // Split by newline and process complete lines
+        const lines = buffer.split('\n');
+        
+        // Keep the last incomplete line in buffer
+        buffer = lines[lines.length - 1];
+        
+        // Process all complete lines (all but the last one)
+        for (let i = 0; i < lines.length - 1; i++) {
+          const line = lines[i].trim();
+          
+          if (!line) continue; // Skip empty lines
+          
           if (line.startsWith('data: ')) {
             try {
-              const jsonStr = line.slice(6);
+              const jsonStr = line.slice(6).trim();
+              
               if (jsonStr === '[DONE]') {
                 // Stream complete
                 const readyToCode = readySignals.some(signal =>
@@ -131,22 +145,26 @@ async function streamResponse(requestPayload, res) {
                 return;
               }
 
-              const data = JSON.parse(jsonStr);
-              if (data.choices && data.choices[0].delta && data.choices[0].delta.content) {
-                const content = data.choices[0].delta.content;
-                fullMessage += content;
+              // Only try to parse if it looks like JSON
+              if (jsonStr.startsWith('{')) {
+                const data = JSON.parse(jsonStr);
+                if (data.choices && data.choices[0].delta && data.choices[0].delta.content) {
+                  const content = data.choices[0].delta.content;
+                  fullMessage += content;
 
-                // Send chunk to client in real-time
-                res.write(JSON.stringify({
-                  type: 'chunk',
-                  content
-                }) + '\n');
+                  // Send chunk to client in real-time
+                  res.write(JSON.stringify({
+                    type: 'chunk',
+                    content
+                  }) + '\n');
+                }
               }
             } catch (error) {
-              console.error('Error parsing stream chunk:', error.message);
+              // Silently skip malformed chunks
+              console.debug('Skipped malformed chunk:', error.message);
             }
           }
-        });
+        }
       });
 
       response.data.on('error', (error) => {
@@ -155,6 +173,36 @@ async function streamResponse(requestPayload, res) {
       });
 
       response.data.on('end', () => {
+        // Process any remaining data in buffer
+        if (buffer.trim()) {
+          const line = buffer.trim();
+          if (line.startsWith('data: ')) {
+            try {
+              const jsonStr = line.slice(6).trim();
+              if (jsonStr === '[DONE]') {
+                const readyToCode = readySignals.some(signal =>
+                  fullMessage.toLowerCase().includes(signal)
+                );
+                res.write(JSON.stringify({
+                  type: 'complete',
+                  readyToCode,
+                  fullMessage
+                }) + '\n');
+              } else if (jsonStr.startsWith('{')) {
+                const data = JSON.parse(jsonStr);
+                if (data.choices && data.choices[0].delta && data.choices[0].delta.content) {
+                  fullMessage += data.choices[0].delta.content;
+                  res.write(JSON.stringify({
+                    type: 'chunk',
+                    content: data.choices[0].delta.content
+                  }) + '\n');
+                }
+              }
+            } catch (error) {
+              console.debug('Skipped final malformed chunk');
+            }
+          }
+        }
         res.end();
       });
     });

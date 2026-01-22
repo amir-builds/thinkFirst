@@ -76,17 +76,37 @@ function wrapCodeWithBoilerplate(code, language, input) {
 # Auto-generated input handling
 import ast
 import json
+import sys
 try:
-    _input = input()
-    _args = ast.literal_eval(_input)
-    if isinstance(_args, tuple):
-        result = ${funcName}(*_args)
-    else:
-        result = ${funcName}(_args)
+    _input = input().strip()
+    
+    # Try to parse comma-separated arguments (e.g., "[2,7,11,15], 9")
+    # First, try to evaluate the entire input
+    try:
+        _args = ast.literal_eval(_input)
+        if isinstance(_args, tuple):
+            result = ${funcName}(*_args)
+        else:
+            result = ${funcName}(_args)
+    except:
+        # If that fails, try splitting by comma at top level
+        # Handle cases like "[2,7,11,15], 9"
+        if '],' in _input or '},'.join(_input):
+            # Find the split point (after ] or })
+            split_idx = max(_input.find('],'), _input.find('},'))
+            if split_idx > 0:
+                first_arg = ast.literal_eval(_input[:split_idx+1])
+                remaining = _input[split_idx+2:].strip()
+                other_args = [ast.literal_eval(x.strip()) for x in remaining.split(',') if x.strip()]
+                result = ${funcName}(first_arg, *other_args)
+            else:
+                result = ${funcName}(_input)
+        else:
+            result = ${funcName}(_input)
+    
     print(json.dumps(result))
-except:
-    result = ${funcName}(_input)
-    print(json.dumps(result))
+except Exception as e:
+    print(json.dumps({"error": str(e)}), file=sys.stderr)
 `;
 
     case 'javascript':
@@ -96,9 +116,34 @@ except:
 const fs = require('fs');
 const _input = fs.readFileSync(0, 'utf8').trim();
 try {
-    const _args = JSON.parse(_input);
-    console.log(JSON.stringify(${funcName}(_args)));
+    // Handle multiple arguments separated by comma (e.g., "[2,7,11,15], 9")
+    const _parts = _input.split(',').map(s => s.trim());
+    
+    // Try to parse as multiple JSON arguments
+    if (_parts.length > 1) {
+        // Check if first part looks like an array/object
+        const firstArgEnd = _input.indexOf(']') !== -1 ? _input.indexOf(']') + 1 : _input.indexOf('}') + 1;
+        if (firstArgEnd > 0) {
+            const firstArg = JSON.parse(_input.substring(0, firstArgEnd));
+            const remainingArgs = _input.substring(firstArgEnd + 1).trim().split(/,\\s*/).filter(s => s).map(s => {
+                try { return JSON.parse(s); } catch(e) { return s; }
+            });
+            const result = ${funcName}(firstArg, ...remainingArgs);
+            console.log(JSON.stringify(result));
+        } else {
+            // Simple comma-separated values
+            const _args = _parts.map(p => { try { return JSON.parse(p); } catch(e) { return p; } });
+            const result = ${funcName}(..._args);
+            console.log(JSON.stringify(result));
+        }
+    } else {
+        // Single argument
+        const _args = JSON.parse(_input);
+        const result = ${funcName}(_args);
+        console.log(JSON.stringify(result));
+    }
 } catch(e) {
+    console.error('Error in boilerplate:', e.message);
     console.log(JSON.stringify(${funcName}(_input)));
 }
 `;
