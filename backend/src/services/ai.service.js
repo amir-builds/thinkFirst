@@ -27,7 +27,7 @@ export async function evaluatePlan(problem, plan, res = null) {
         }
       ],
       temperature: 0.2,
-      max_tokens: 120,
+      max_tokens: 500,
       stream: isStreaming
     };
 
@@ -48,12 +48,14 @@ export async function evaluatePlan(problem, plan, res = null) {
 async function getNonStreamResponse(requestPayload) {
   try {
     const response = await axios.post(
-      `${process.env.OPENROUTER_BASE_URL}`,
+      process.env.OPENROUTER_BASE_URL,
       requestPayload,
       {
         headers: {
           'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'HTTP-Referer': 'https://thinkfirst.app',
+          'X-Title': 'ThinkFirst'
         }
       }
     );
@@ -83,14 +85,17 @@ async function getNonStreamResponse(requestPayload) {
 async function streamResponse(requestPayload, res) {
   try {
     const response = await axios.post(
-      `${process.env.OPENROUTER_BASE_URL}`,
+      process.env.OPENROUTER_BASE_URL,
       requestPayload,
       {
         headers: {
           'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'HTTP-Referer': 'https://thinkfirst.app',
+          'X-Title': 'ThinkFirst'
         },
-        responseType: 'stream'
+        responseType: 'stream',
+        timeout: 30000 // 30 second timeout
       }
     );
 
@@ -107,6 +112,24 @@ async function streamResponse(requestPayload, res) {
     res.setHeader('Transfer-Encoding', 'chunked');
 
     return new Promise((resolve, reject) => {
+      // Add timeout safety net
+      const timeout = setTimeout(() => {
+        console.warn('Stream timeout after 30s');
+        const readyToCode = readySignals.some(signal =>
+          fullMessage.toLowerCase().includes(signal)
+        );
+        res.write(JSON.stringify({
+          type: 'complete',
+          readyToCode,
+          fullMessage
+        }) + '\n');
+        res.end();
+        resolve({
+          readyToCode,
+          message: fullMessage
+        });
+      }, 30000);
+
       response.data.on('data', (chunk) => {
         // Append chunk to buffer
         buffer += chunk.toString();
@@ -129,6 +152,7 @@ async function streamResponse(requestPayload, res) {
               
               if (jsonStr === '[DONE]') {
                 // Stream complete
+                clearTimeout(timeout);
                 const readyToCode = readySignals.some(signal =>
                   fullMessage.toLowerCase().includes(signal)
                 );
@@ -138,6 +162,7 @@ async function streamResponse(requestPayload, res) {
                   readyToCode,
                   fullMessage
                 }) + '\n');
+                res.end();
                 resolve({
                   readyToCode,
                   message: fullMessage
@@ -168,11 +193,13 @@ async function streamResponse(requestPayload, res) {
       });
 
       response.data.on('error', (error) => {
+        clearTimeout(timeout);
         console.error('Stream error:', error.message);
         reject(error);
       });
 
       response.data.on('end', () => {
+        clearTimeout(timeout);
         // Process any remaining data in buffer
         if (buffer.trim()) {
           const line = buffer.trim();
@@ -188,6 +215,12 @@ async function streamResponse(requestPayload, res) {
                   readyToCode,
                   fullMessage
                 }) + '\n');
+                res.end();
+                resolve({
+                  readyToCode,
+                  message: fullMessage
+                });
+                return;
               } else if (jsonStr.startsWith('{')) {
                 const data = JSON.parse(jsonStr);
                 if (data.choices && data.choices[0].delta && data.choices[0].delta.content) {
@@ -203,7 +236,21 @@ async function streamResponse(requestPayload, res) {
             }
           }
         }
+        
+        // Always complete the stream when it ends, even without [DONE]
+        const readyToCode = readySignals.some(signal =>
+          fullMessage.toLowerCase().includes(signal)
+        );
+        res.write(JSON.stringify({
+          type: 'complete',
+          readyToCode,
+          fullMessage
+        }) + '\n');
         res.end();
+        resolve({
+          readyToCode,
+          message: fullMessage
+        });
       });
     });
   } catch (error) {

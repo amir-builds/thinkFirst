@@ -7,8 +7,10 @@ export default function Home() {
   return (
     <div style={styles.container}>
       <div style={styles.content}>
-        <h1 style={styles.title}>Welcome to ThinkFirst</h1>
-        <p style={styles.subtitle}>Practice coding, improve your skills</p>
+        <h1 style={styles.title}>
+          Welcome to <img src="/img/logo.png" alt="ThinkFirst" style={styles.logo} />
+        </h1>
+        <p style={styles.subtitle}>Good programmers are not fast typers — they are clear thinkers</p>
         
         <div style={styles.buttonGroup}>
           <button
@@ -35,7 +37,7 @@ const styles = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+    background: "linear-gradient(135deg, rgb(0 0 0) 47%, rgb(145 145 145) 50%)"
   },
   content: {
     textAlign: "center",
@@ -44,8 +46,16 @@ const styles = {
   },
   title: {
     fontSize: "48px",
-    fontWeight: "bold",
-    marginBottom: "20px"
+    marginBottom: "20px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "15px"
+  },
+  logo: {
+    height: "96px",
+    width: "auto",
+    verticalAlign: "middle"
   },
   subtitle: {
     fontSize: "20px",

@@ -30,13 +30,6 @@ export default function CodeEditor() {
     fetchQuestion();
   }, [id]);
 
-  useEffect(() => {
-    // Auto-scroll to bottom when new messages arrive
-    if (chatEndRef.current) {
-      chatEndRef.current.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [messages, isProcessing]);
-
   const fetchQuestion = async () => {
     try {
       const response = await axios.get(`${API_BASE_URL}/questions/${id}`);
