@@ -1,4 +1,4 @@
-# ![ThinkFirst Logo](public/img/logo.png)
+# ![ThinkFirst Logo](logo.png)
 ### Thinking-First Coding Practice Platform
 
 ThinkFirst is a coding practice platform designed to help learners develop strong problem-solving skills by **thinking and planning before writing code**.
