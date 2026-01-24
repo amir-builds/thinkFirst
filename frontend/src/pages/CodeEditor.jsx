@@ -271,6 +271,12 @@ export default function CodeEditor() {
                 <div><strong>Output:</strong> {question.sample_output2}</div>
               </div>
             )}
+            {question.sample_input3 && (
+              <div style={styles.testCase}>
+                <div><strong>Input:</strong> {question.sample_input3}</div>
+                <div><strong>Output:</strong> {question.sample_output3}</div>
+              </div>
+            )}
           </div>
         )}
       </div>
