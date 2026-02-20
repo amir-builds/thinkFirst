@@ -8,7 +8,7 @@ export default function Home() {
     <div style={styles.container}>
       <div style={styles.content}>
         <h1 style={styles.title}>
-          Welcome to <img src="/img/logo.png" alt="ThinkFirst" style={styles.logo} />
+          Welcome to <img src="/logo.png" alt="ThinkFirst" style={styles.logo} />
         </h1>
         <p style={styles.subtitle}>Good programmers are not fast typers — they are clear thinkers</p>
         
