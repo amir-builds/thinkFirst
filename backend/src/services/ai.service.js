@@ -1,4 +1,4 @@
-import axios from 'axios';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -11,30 +11,18 @@ const systemPrompt = fs.readFileSync(
   'utf-8'
 );
 
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' });
+
 export async function evaluatePlan(problem, plan, res = null) {
   try {
     const isStreaming = res !== null;
-    const requestPayload = {
-      model: process.env.DEEPSEEK_MODEL,
-      messages: [
-        {
-          role: 'system',
-          content: systemPrompt
-        },
-        {
-          role: 'user',
-          content: `Problem:\n${problem}\n\nStudent's Plan:\n${plan}`
-        }
-      ],
-      temperature: 0.2,
-      max_tokens: 500,
-      stream: isStreaming
-    };
+    const userMessage = `Problem:\n${problem}\n\nStudent's Plan:\n${plan}`;
 
     if (isStreaming) {
-      return await streamResponse(requestPayload, res);
+      return await streamResponse(userMessage, res);
     } else {
-      return await getNonStreamResponse(requestPayload);
+      return await getNonStreamResponse(userMessage);
     }
   } catch (error) {
     console.error('AI Service Error:', error.message);
@@ -45,22 +33,23 @@ export async function evaluatePlan(problem, plan, res = null) {
   }
 }
 
-async function getNonStreamResponse(requestPayload) {
+async function getNonStreamResponse(userMessage) {
   try {
-    const response = await axios.post(
-      process.env.OPENROUTER_BASE_URL,
-      requestPayload,
-      {
-        headers: {
-          'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-          'Content-Type': 'application/json',
-          'HTTP-Referer': 'https://thinkfirst.app',
-          'X-Title': 'ThinkFirst'
+    const response = await model.generateContent({
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: userMessage }]
         }
+      ],
+      systemInstruction: systemPrompt,
+      generationConfig: {
+        temperature: 0.5,
+        maxOutputTokens: 800
       }
-    );
+    });
 
-    const aiMessage = response.data.choices[0].message.content;
+    const aiMessage = response.response.text();
     
     const readySignals = [
       'ready to try coding',
@@ -82,25 +71,23 @@ async function getNonStreamResponse(requestPayload) {
   }
 }
 
-async function streamResponse(requestPayload, res) {
+async function streamResponse(userMessage, res) {
   try {
-    const response = await axios.post(
-      process.env.OPENROUTER_BASE_URL,
-      requestPayload,
-      {
-        headers: {
-          'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-          'Content-Type': 'application/json',
-          'HTTP-Referer': 'https://thinkfirst.app',
-          'X-Title': 'ThinkFirst'
-        },
-        responseType: 'stream',
-        timeout: 30000 // 30 second timeout
+    const stream = await model.generateContentStream({
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: userMessage }]
+        }
+      ],
+      systemInstruction: systemPrompt,
+      generationConfig: {
+        temperature: 0.5,
+        maxOutputTokens: 800
       }
-    );
+    });
 
     let fullMessage = '';
-    let buffer = '';
     const readySignals = [
       'ready to try coding',
       'ready to code',
@@ -111,147 +98,43 @@ async function streamResponse(requestPayload, res) {
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Transfer-Encoding', 'chunked');
 
-    return new Promise((resolve, reject) => {
-      // Add timeout safety net
-      const timeout = setTimeout(() => {
-        console.warn('Stream timeout after 30s');
+    return new Promise(async (resolve, reject) => {
+      try {
+        // Get the response from the stream
+        const response = await stream.response;
+        
+        // Extract text from the response
+        const text = response.text();
+        fullMessage = text;
+
+        // Send chunks (for now send whole response)
+        if (text) {
+          res.write(JSON.stringify({
+            type: 'chunk',
+            content: text
+          }) + '\n');
+        }
+
+        // Stream complete
         const readyToCode = readySignals.some(signal =>
           fullMessage.toLowerCase().includes(signal)
         );
+
         res.write(JSON.stringify({
           type: 'complete',
           readyToCode,
           fullMessage
         }) + '\n');
         res.end();
+
         resolve({
           readyToCode,
           message: fullMessage
         });
-      }, 30000);
-
-      response.data.on('data', (chunk) => {
-        // Append chunk to buffer
-        buffer += chunk.toString();
-        
-        // Split by newline and process complete lines
-        const lines = buffer.split('\n');
-        
-        // Keep the last incomplete line in buffer
-        buffer = lines[lines.length - 1];
-        
-        // Process all complete lines (all but the last one)
-        for (let i = 0; i < lines.length - 1; i++) {
-          const line = lines[i].trim();
-          
-          if (!line) continue; // Skip empty lines
-          
-          if (line.startsWith('data: ')) {
-            try {
-              const jsonStr = line.slice(6).trim();
-              
-              if (jsonStr === '[DONE]') {
-                // Stream complete
-                clearTimeout(timeout);
-                const readyToCode = readySignals.some(signal =>
-                  fullMessage.toLowerCase().includes(signal)
-                );
-                
-                res.write(JSON.stringify({
-                  type: 'complete',
-                  readyToCode,
-                  fullMessage
-                }) + '\n');
-                res.end();
-                resolve({
-                  readyToCode,
-                  message: fullMessage
-                });
-                return;
-              }
-
-              // Only try to parse if it looks like JSON
-              if (jsonStr.startsWith('{')) {
-                const data = JSON.parse(jsonStr);
-                if (data.choices && data.choices[0].delta && data.choices[0].delta.content) {
-                  const content = data.choices[0].delta.content;
-                  fullMessage += content;
-
-                  // Send chunk to client in real-time
-                  res.write(JSON.stringify({
-                    type: 'chunk',
-                    content
-                  }) + '\n');
-                }
-              }
-            } catch (error) {
-              // Silently skip malformed chunks
-              console.debug('Skipped malformed chunk:', error.message);
-            }
-          }
-        }
-      });
-
-      response.data.on('error', (error) => {
-        clearTimeout(timeout);
-        console.error('Stream error:', error.message);
+      } catch (error) {
+        console.error('Stream processing error:', error.message);
         reject(error);
-      });
-
-      response.data.on('end', () => {
-        clearTimeout(timeout);
-        // Process any remaining data in buffer
-        if (buffer.trim()) {
-          const line = buffer.trim();
-          if (line.startsWith('data: ')) {
-            try {
-              const jsonStr = line.slice(6).trim();
-              if (jsonStr === '[DONE]') {
-                const readyToCode = readySignals.some(signal =>
-                  fullMessage.toLowerCase().includes(signal)
-                );
-                res.write(JSON.stringify({
-                  type: 'complete',
-                  readyToCode,
-                  fullMessage
-                }) + '\n');
-                res.end();
-                resolve({
-                  readyToCode,
-                  message: fullMessage
-                });
-                return;
-              } else if (jsonStr.startsWith('{')) {
-                const data = JSON.parse(jsonStr);
-                if (data.choices && data.choices[0].delta && data.choices[0].delta.content) {
-                  fullMessage += data.choices[0].delta.content;
-                  res.write(JSON.stringify({
-                    type: 'chunk',
-                    content: data.choices[0].delta.content
-                  }) + '\n');
-                }
-              }
-            } catch (error) {
-              console.debug('Skipped final malformed chunk');
-            }
-          }
-        }
-        
-        // Always complete the stream when it ends, even without [DONE]
-        const readyToCode = readySignals.some(signal =>
-          fullMessage.toLowerCase().includes(signal)
-        );
-        res.write(JSON.stringify({
-          type: 'complete',
-          readyToCode,
-          fullMessage
-        }) + '\n');
-        res.end();
-        resolve({
-          readyToCode,
-          message: fullMessage
-        });
-      });
+      }
     });
   } catch (error) {
     console.error('Streaming API Error:', error.message);
