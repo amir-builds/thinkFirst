@@ -3,13 +3,21 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiResponse } from "../utils/apiResponse.js";
 import { ApiError } from "../utils/apiError.js";
 import { evaluatePlan } from "../services/ai.service.js";
+import {
+  getOrCreateSessionId,
+  getConversationHistory,
+  addMessageToHistory,
+  formatHistoryForGemini,
+  clearConversationHistory,
+  getConversationStats
+} from "../services/conversation.service.js";
 
 const router = Router();
 
 router.post(
   "/mentor",
   asyncHandler(async (req, res) => {
-    const { problem, plan } = req.body;
+    const { problem, plan, sessionId: clientSessionId } = req.body;
 
     if (!problem || typeof problem !== "string") {
       throw new ApiError(400, "Problem description is required");
@@ -19,9 +27,54 @@ router.post(
       throw new ApiError(400, "Plan is required");
     }
 
+    // Get or create session ID
+    const sessionId = getOrCreateSessionId(clientSessionId);
+    const isNewSession = !clientSessionId || clientSessionId !== sessionId;
+
+    // Get conversation history from Redis
+    const history = await getConversationHistory(sessionId);
+    
+    // Format message efficiently
+    const userMessage = isNewSession 
+      ? `Problem:\n${problem}\n\nStudent's Plan:\n${plan}` // Full context on first message
+      : plan; // Just the plan on subsequent messages
+    
+    // Add user message to history BEFORE getting Gemini history
+    await addMessageToHistory(sessionId, 'user', userMessage);
+    
+    // Get updated history and format for Gemini (will be pruned if too long)
+    const updatedHistory = await getConversationHistory(sessionId);
+    const geminiHistory = formatHistoryForGemini(updatedHistory.slice(0, -1)); // Exclude the message we just added
+    
+    // For new sessions, include problem context in the message itself
+    const messageForAI = isNewSession ? userMessage : `Problem:\n${problem}\n\nStudent's Plan:\n${plan}`;
+    
+    // Log stats for monitoring (optional - remove in production if not needed)
+    if (process.env.NODE_ENV === 'development') {
+      const stats = getConversationStats(updatedHistory);
+      console.log(`[Session ${sessionId.substring(0, 8)}] Messages: ${stats.messageCount}, Est. Tokens: ${stats.estimatedTokens}`);
+    }messageForAI
+
+    // Set response headers before streaming
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Transfer-Encoding', 'chunked');
+
     // Use streaming for real-time response
     try {
-      await evaluatePlan(problem, plan, res);
+      // Send session ID if new session (before starting the AI stream)
+      if (isNewSession) {
+        res.write(JSON.stringify({
+          type: 'session',
+          sessionId
+        }) + '\n');
+      }
+
+      const result = await evaluatePlan(problem, plan, res, geminiHistory);
+      
+      // Save assistant's response to history
+      if (result && result.message) {
+        await addMessageToHistory(sessionId, 'assistant', result.message);
+      }
     } catch (error) {
       console.error('Streaming error:', error.message);
       if (!res.headersSent) {
@@ -64,6 +117,47 @@ router.post(
     const message = reflectionQuestions[randomIndex];
 
     return res.status(200).json(new ApiResponse(200, { message }, "Reflection question generated"));
+  })
+);
+
+// Clear conversation history
+router.delete(
+  "/conversation/:sessionId",
+  asyncHandler(async (req, res) => {
+    const { sessionId } = req.params;
+
+    if (!sessionId) {
+      throw new ApiError(400, "Session ID is required");
+    }
+
+    await clearConversationHistory(sessionId);
+    return res.status(200).json(new ApiResponse(200, null, "Conversation history cleared"));
+  })
+);
+
+// Get conversation stats (for monitoring/debugging)
+router.get(
+  "/conversation/:sessionId/stats",
+  asyncHandler(async (req, res) => {
+    const { sessionId } = req.params;
+
+    if (!sessionId) {
+      throw new ApiError(400, "Session ID is required");
+    }
+
+    const history = await getConversationHistory(sessionId);
+    const stats = getConversationStats(history);
+    
+    return res.status(200).json(new ApiResponse(200, {
+      sessionId,
+      messageCount: stats.messageCount,
+      estimatedTokens: stats.estimatedTokens,
+      messages: history.map(m => ({
+        role: m.role,
+        length: m.content.length,
+        timestamp: m.timestamp
+      }))
+    }, "Conversation stats retrieved"));
   })
 );
 
