@@ -1,3 +1,6 @@
 node_modules
 .env
 deepSeekAPI-key.txt
+PROJECT_REPORT.md
+CONVERSATION_MEMORY.md
+OPTIMIZATION_SUMMARY.md
