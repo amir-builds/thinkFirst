@@ -34,26 +34,22 @@ router.post(
     // Get conversation history from Redis
     const history = await getConversationHistory(sessionId);
     
-    // Format message efficiently
-    const userMessage = isNewSession 
-      ? `Problem:\n${problem}\n\nStudent's Plan:\n${plan}` // Full context on first message
-      : plan; // Just the plan on subsequent messages
+    // Always save full context for history (problem is needed for understanding continuity)
+    const fullUserMessage = `Problem:\n${problem}\n\nStudent's Plan:\n${plan}`;
     
     // Add user message to history BEFORE getting Gemini history
-    await addMessageToHistory(sessionId, 'user', userMessage);
+    await addMessageToHistory(sessionId, 'user', fullUserMessage);
     
     // Get updated history and format for Gemini (will be pruned if too long)
     const updatedHistory = await getConversationHistory(sessionId);
     const geminiHistory = formatHistoryForGemini(updatedHistory.slice(0, -1)); // Exclude the message we just added
     
-    // For new sessions, include problem context in the message itself
-    const messageForAI = isNewSession ? userMessage : `Problem:\n${problem}\n\nStudent's Plan:\n${plan}`;
-    
-    // Log stats for monitoring (optional - remove in production if not needed)
+    // Log stats for monitoring
     if (process.env.NODE_ENV === 'development') {
       const stats = getConversationStats(updatedHistory);
-      console.log(`[Session ${sessionId.substring(0, 8)}] Messages: ${stats.messageCount}, Est. Tokens: ${stats.estimatedTokens}`);
-    }messageForAI
+      console.log(`[Session ${sessionId.substring(0, 8)}] History messages: ${stats.messageCount}, Est. Tokens: ${stats.estimatedTokens}`);
+      console.log(`[Session ${sessionId.substring(0, 8)}] Gemini history length: ${geminiHistory.length}`);
+    }
 
     // Set response headers before streaming
     res.setHeader('Content-Type', 'application/json');

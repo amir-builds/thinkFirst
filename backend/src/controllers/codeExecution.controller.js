@@ -125,7 +125,7 @@ try {
         const firstArgEnd = _input.indexOf(']') !== -1 ? _input.indexOf(']') + 1 : _input.indexOf('}') + 1;
         if (firstArgEnd > 0) {
             const firstArg = JSON.parse(_input.substring(0, firstArgEnd));
-            const remainingArgs = _input.substring(firstArgEnd + 1).trim().split(/,\\s*/).filter(s => s).map(s => {
+            const remainingArgs = _input.substring(firstArgEnd + 1).trim().split(/,\s*/).filter(s => s).map(s => {
                 try { return JSON.parse(s); } catch(e) { return s; }
             });
             const result = ${funcName}(firstArg, ...remainingArgs);

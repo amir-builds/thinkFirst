@@ -23,7 +23,15 @@ export async function evaluatePlan(problem, plan, res = null, conversationHistor
     // Build conversation contents with history
     const contents = [...conversationHistory];
     
-    // Add current user message
+    // Log for debugging
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[AI Service] Incoming history length: ${conversationHistory.length}`);
+      if (conversationHistory.length > 0) {
+        console.log(`[AI Service] Last message in history: ${conversationHistory[conversationHistory.length - 1].role}`);
+      }
+    }
+    
+    // Add current user message (note: history already includes full context)
     contents.push({
       role: 'user',
       parts: [

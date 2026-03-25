@@ -53,6 +53,7 @@ export async function saveConversationHistory(sessionId, messages) {
  */
 export async function addMessageToHistory(sessionId, role, content) {
   let history = await getConversationHistory(sessionId);
+  const beforeLength = history.length;
   
   // Add new message
   history.push({ role, content, timestamp: Date.now() });
@@ -74,6 +75,12 @@ export async function addMessageToHistory(sessionId, role, content) {
   }
   
   await saveConversationHistory(sessionId, history);
+  
+  // Debug logging
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`[ConversationService] ${sessionId.substring(0, 8)} - Added ${role}: ${beforeLength} → ${history.length} messages, ~${totalTokens} tokens`);
+  }
+  
   return history;
 }
 
