@@ -15,12 +15,17 @@ export async function runJudge0(code, language, input = "") {
   }
 
   const baseUrl = process.env.JUDGE0_URL || "http://localhost:2358";
-  const url = `${baseUrl}/submissions?base64_encoded=false&wait=true`;
+  // Use base64 encoding to handle special characters in code (especially C++ #include)
+  const url = `${baseUrl}/submissions?base64_encoded=true&wait=true`;
+
+  // Convert code and input to base64
+  const sourceCodeBase64 = Buffer.from(code).toString('base64');
+  const stdinBase64 = Buffer.from(input).toString('base64');
 
   const payload = {
-    source_code: code,
+    source_code: sourceCodeBase64,
     language_id: langId,
-    stdin: input,
+    stdin: stdinBase64,
     cpu_time_limit: 5,
     memory_limit: 128000
   };
@@ -30,6 +35,7 @@ export async function runJudge0(code, language, input = "") {
       headers: { "Content-Type": "application/json" },
       timeout: 30000
     });
+    console.log("[JUDGE0 RESPONSE]", JSON.stringify(response.data, null, 2));
     return response.data;
   } catch (error) {
     if (error.code === "ECONNREFUSED") {
