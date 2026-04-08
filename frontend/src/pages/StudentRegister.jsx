@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import Button from "../components/ui/Button";
+import { FcGoogle } from "react-icons/fc";
+import { FaGithub } from "react-icons/fa";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api/v1";
 
@@ -389,57 +391,75 @@ export default function StudentRegister() {
           <div style={{ flex: 1, height: "1px", background: "rgba(255, 255, 255, 0.1)" }}></div>
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-          <button
-            type="button"
-            onClick={() => handleOAuthLogin("github")}
-            style={{
-              padding: "12px",
-              background: "rgba(255, 255, 255, 0.1)",
-              border: "1px solid rgba(255, 255, 255, 0.2)",
-              borderRadius: "6px",
-              color: "#e8e8f0",
-              cursor: "pointer",
-              fontSize: "14px",
-              fontWeight: "500",
-              transition: "all 0.2s",
-            }}
-            onMouseEnter={(e) => {
-              e.target.style.background = "rgba(255, 255, 255, 0.15)";
-              e.target.style.borderColor = "rgba(232, 197, 71, 0.5)";
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.background = "rgba(255, 255, 255, 0.1)";
-              e.target.style.borderColor = "rgba(255, 255, 255, 0.2)";
-            }}
-          >
-            🐙 Register with GitHub
-          </button>
-
+        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
           <button
             type="button"
             onClick={() => handleOAuthLogin("google")}
             style={{
-              padding: "12px",
-              background: "rgba(255, 255, 255, 0.1)",
-              border: "1px solid rgba(255, 255, 255, 0.2)",
-              borderRadius: "6px",
-              color: "#e8e8f0",
+              width: "100%",
+              padding: "14px 16px",
+              background: "#ffffff",
+              border: "1px solid #e0e0e0",
+              borderRadius: "8px",
+              color: "#1f1f1f",
               cursor: "pointer",
-              fontSize: "14px",
+              fontSize: "15px",
               fontWeight: "500",
-              transition: "all 0.2s",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "12px",
+              transition: "all 0.3s ease",
+              boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
             }}
             onMouseEnter={(e) => {
-              e.target.style.background = "rgba(255, 255, 255, 0.15)";
-              e.target.style.borderColor = "rgba(232, 197, 71, 0.5)";
+              e.currentTarget.style.background = "#f8f8f8";
+              e.currentTarget.style.boxShadow = "0 4px 8px rgba(0, 0, 0, 0.15)";
+              e.currentTarget.style.transform = "translateY(-2px)";
             }}
             onMouseLeave={(e) => {
-              e.target.style.background = "rgba(255, 255, 255, 0.1)";
-              e.target.style.borderColor = "rgba(255, 255, 255, 0.2)";
+              e.currentTarget.style.background = "#ffffff";
+              e.currentTarget.style.boxShadow = "0 2px 4px rgba(0, 0, 0, 0.1)";
+              e.currentTarget.style.transform = "translateY(0)";
             }}
           >
-            🔴 Register with Google
+            <FcGoogle size={20} />
+            Continue with Google
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleOAuthLogin("github")}
+            style={{
+              width: "100%",
+              padding: "14px 16px",
+              background: "#1f1f1f",
+              border: "1px solid #333333",
+              borderRadius: "8px",
+              color: "#ffffff",
+              cursor: "pointer",
+              fontSize: "15px",
+              fontWeight: "500",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "12px",
+              transition: "all 0.3s ease",
+              boxShadow: "0 2px 4px rgba(0, 0, 0, 0.2)",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "#2d2d2d";
+              e.currentTarget.style.boxShadow = "0 4px 8px rgba(0, 0, 0, 0.3)";
+              e.currentTarget.style.transform = "translateY(-2px)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "#1f1f1f";
+              e.currentTarget.style.boxShadow = "0 2px 4px rgba(0, 0, 0, 0.2)";
+              e.currentTarget.style.transform = "translateY(0)";
+            }}
+          >
+            <FaGithub size={20} />
+            Continue with GitHub
           </button>
         </div>
         </>
