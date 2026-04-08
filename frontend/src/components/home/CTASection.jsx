@@ -31,9 +31,6 @@ export default function CTASection() {
           <Button variant="primary" size="lg" onClick={() => navigate("/practice")}>
             Begin Your First Problem →
           </Button>
-          <Button variant="ghost" size="lg" onClick={() => navigate("/admin/login")}>
-            Admin Panel
-          </Button>
         </div>
       </AnimatedSection>
     </section>

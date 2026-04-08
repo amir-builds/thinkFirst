@@ -2,14 +2,13 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import Button from "../ui/Button";
 
-const navLinks = ["Practice", "How it works", "Admin"];
+const navLinks = ["Practice", "How it works"];
 
 export default function Navbar() {
   const navigate = useNavigate();
 
   const handleNavClick = (label) => {
     if (label === "Practice") navigate("/practice");
-    else if (label === "Admin") navigate("/admin/login");
   };
 
   return (
@@ -31,7 +30,7 @@ export default function Navbar() {
         </span>
       </div>
 
-      <div style={{ display: "flex", gap: 32 }}>
+      <div style={{ display: "flex", gap: 32, alignItems: "center" }}>
         {navLinks.map((label) => (
           <a
             key={label}
@@ -48,9 +47,33 @@ export default function Navbar() {
         ))}
       </div>
 
-      <Button variant="primary" size="sm" onClick={() => navigate("/practice")}>
-        Start Thinking →
-      </Button>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", justifyContent: "flex-end" }}>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => navigate("/student/login")}
+          style={{
+            borderRadius: 999,
+            padding: "10px 18px",
+            minWidth: 92,
+          }}
+        >
+          Login
+        </Button>
+        <Button
+          variant="primary"
+          size="sm"
+          onClick={() => navigate("/student/register")}
+          style={{
+            borderRadius: 999,
+            padding: "10px 18px",
+            minWidth: 110,
+            boxShadow: "0 10px 30px rgba(232, 197, 71, 0.18)",
+          }}
+        >
+          Register
+        </Button>
+      </div>
     </nav>
   );
 }

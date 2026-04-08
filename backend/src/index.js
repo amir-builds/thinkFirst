@@ -8,10 +8,16 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 8000;
+const corsOrigins = (process.env.CORS_ORIGIN || process.env.FRONTEND_URL || "http://localhost:3000")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+app.set("trust proxy", 1);
 
 // Middleware
 app.use(cors({
-  origin: process.env.CORS_ORIGIN,
+  origin: corsOrigins.length === 1 ? corsOrigins[0] : corsOrigins,
   credentials: true
 }));
 app.use(express.json({ limit: "50kb" }));
@@ -29,11 +35,13 @@ connectDB().then((db) => {
 
 // Routes
 import adminRoutes from "./routes/admin.routes.js";
+import studentRoutes from "./routes/student.routes.js";
 import questionRoutes from "./routes/question.routes.js";
 import codeExecutionRoutes from "./routes/codeExecution.routes.js";
 import aiRoutes from "./routes/ai.routes.js";
 
 app.use("/api/v1/admin", adminRoutes);
+app.use("/api/v1/student", studentRoutes);
 app.use("/api/v1/questions", questionRoutes);
 app.use("/api/v1/runcode", codeExecutionRoutes);
 app.use("/api/v1/ai", aiRoutes);

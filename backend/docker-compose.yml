@@ -49,6 +49,7 @@ services:
       - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
       - ./sql/00-admins.sql:/docker-entrypoint-initdb.d/00-admins.sql
       - ./sql/10-questions.sql:/docker-entrypoint-initdb.d/10-questions.sql
+      - ./sql/20-students.sql:/docker-entrypoint-initdb.d/20-students.sql
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "${MYSQL_USER}", "-p${MYSQL_PASSWORD}"]
       timeout: 10s

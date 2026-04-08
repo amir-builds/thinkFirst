@@ -4,7 +4,6 @@ import Button from "../ui/Button";
 
 const defaultActions = [
   { label: "Start Practice", path: "/practice", variant: "primary" },
-  { label: "Admin Login", path: "/admin/login", variant: "secondary" },
 ];
 
 export default function NavButtons({ actions = defaultActions }) {

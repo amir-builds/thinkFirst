@@ -3,6 +3,7 @@ import React from "react";
 const baseStyles = {
   display: "inline-flex",
   alignItems: "center",
+  justifyContent: "center",
   gap: 8,
   fontFamily: "'Space Grotesk', sans-serif",
   fontWeight: 600,
@@ -42,21 +43,37 @@ export default function Button({
   variant = "primary",
   size = "md",
   style = {},
+  type = "button",
+  disabled = false,
+  ...rest
 }) {
   const [hovered, setHovered] = React.useState(false);
 
   return (
     <button
+      type={type}
+      disabled={disabled}
       onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      onMouseEnter={() => {
+        if (!disabled) {
+          setHovered(true);
+        }
+      }}
+      onMouseLeave={() => {
+        if (!disabled) {
+          setHovered(false);
+        }
+      }}
       style={{
         ...baseStyles,
         ...variantStyles[variant],
         ...sizeStyles[size],
         ...(hovered ? hoverVariants[variant] : {}),
+        cursor: disabled ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.72 : 1,
         ...style,
       }}
+      {...rest}
     >
       {children}
     </button>

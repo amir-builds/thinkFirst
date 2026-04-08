@@ -37,7 +37,7 @@ export default function AdminDashboard() {
       setAdmin(response.data.data.admin);
     } catch (error) {
       toast.error("Please login first");
-      navigate("/admin/login");
+      navigate("/admin");
     } finally {
       setLoading(false);
     }
@@ -58,7 +58,7 @@ export default function AdminDashboard() {
     try {
       await axios.post(`${API_BASE_URL}/admin/logout`, {}, { withCredentials: true });
       toast.success("Logged out successfully");
-      navigate("/admin/login");
+      navigate("/admin");
     } catch (error) {
       toast.error("Logout failed");
     }
