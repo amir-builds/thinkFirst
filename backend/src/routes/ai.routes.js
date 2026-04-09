@@ -2,7 +2,7 @@ import { Router } from "express";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiResponse } from "../utils/apiResponse.js";
 import { ApiError } from "../utils/apiError.js";
-import { evaluatePlan } from "../services/ai.service.js";
+import { evaluatePlan, guidedThinking } from "../services/ai.service.js";
 import {
   getOrCreateSessionId,
   getConversationHistory,
@@ -154,6 +154,30 @@ router.get(
         timestamp: m.timestamp
       }))
     }, "Conversation stats retrieved"));
+  })
+);
+
+router.post(
+  "/guided-thinking",
+  asyncHandler(async (req, res) => {
+    const { problem, conversation } = req.body;
+
+    if (!problem || typeof problem !== "string") {
+      throw new ApiError(400, "Problem description is required");
+    }
+
+    if (!Array.isArray(conversation)) {
+      throw new ApiError(400, "Conversation must be an array");
+    }
+
+    const convo = conversation.map(msg => ({
+      role: msg.role === 'user' ? 'user' : 'mentor',
+      text: msg.text || msg.content || ''
+    }));
+
+    const result = await guidedThinking(problem, convo);
+    
+    return res.status(200).json(new ApiResponse(200, result, "Guided thinking response generated"));
   })
 );
 

@@ -244,3 +244,74 @@ async function streamResponse(requestPayload, res) {
     throw error;
   }
 }
+
+const guidedThinkingPrompt = fs.readFileSync(
+  path.join(__dirname, '../prompts/guidedThinking-system-prompt.txt'),
+  'utf-8'
+);
+
+export async function guidedThinking(problem, conversation = []) {
+  try {
+    const messageCount = conversation.length;
+    let guidanceLevel = 'QUESTION MODE';
+    
+    if (messageCount >= 5) {
+      guidanceLevel = 'CORRECTION MODE';
+    } else if (messageCount >= 3) {
+      guidanceLevel = 'HINT MODE';
+    }
+
+    const conversationText = conversation
+      .map(msg => `${msg.role === 'user' ? 'Student' : 'Mentor'}: ${msg.text}`)
+      .join('\n');
+
+    const userPrompt = `Problem: ${problem}
+
+${conversationText ? `Conversation History:\n${conversationText}\n` : ''}Current guidance level: ${guidanceLevel}
+
+Remember to ask only ONE question that guides their thinking.`;
+
+    const url = `${GEMINI_BASE_URL}/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+    
+    const requestPayload = {
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            {
+              text: userPrompt
+            }
+          ]
+        }
+      ],
+      systemInstruction: {
+        parts: [
+          {
+            text: guidedThinkingPrompt
+          }
+        ]
+      },
+      generationConfig: {
+        temperature: 0.7,
+        maxOutputTokens: 300,
+        topP: 0.95,
+        topK: 40
+      }
+    };
+
+    const response = await axios.post(url, requestPayload, {
+      headers: { 'Content-Type': 'application/json' },
+      timeout: 30000
+    });
+
+    const message = response.data.candidates?.[0]?.content?.parts?.[0]?.text || 
+                   "Let's start simple. What do you think the problem is asking?";
+
+    return { message };
+  } catch (error) {
+    console.error('Guided Thinking Error:', error.message);
+    return {
+      message: "Let's start simple. What do you think the problem is asking?"
+    };
+  }
+}
