@@ -253,12 +253,21 @@ const guidedThinkingPrompt = fs.readFileSync(
 export async function guidedThinking(problem, conversation = []) {
   try {
     const messageCount = conversation.length;
-    let guidanceLevel = 'QUESTION MODE';
     
-    if (messageCount >= 5) {
-      guidanceLevel = 'CORRECTION MODE';
-    } else if (messageCount >= 3) {
-      guidanceLevel = 'HINT MODE';
+    // Determine guidance level based on conversation depth
+    let guidanceContext = '';
+    if (messageCount === 0) {
+      // First message - student is just starting
+      guidanceContext = 'This is the first response. They may be confused about where to start.';
+    } else if (messageCount < 3) {
+      // Early in conversation - help them understand and break down
+      guidanceContext = 'Early in conversation. Help them break down the problem.';
+    } else if (messageCount < 6) {
+      // Middle of conversation - challenge thinking
+      guidanceContext = 'Middle of conversation. Guide toward deeper understanding and edge cases.';
+    } else {
+      // Later in conversation - less guiding, more affirmation
+      guidanceContext = 'Deeper in conversation. They should be near ready. Ask strategic questions.';
     }
 
     const conversationText = conversation
@@ -267,9 +276,13 @@ export async function guidedThinking(problem, conversation = []) {
 
     const userPrompt = `Problem: ${problem}
 
-${conversationText ? `Conversation History:\n${conversationText}\n` : ''}Current guidance level: ${guidanceLevel}
+${conversationText ? `Conversation so far:\n${conversationText}\n` : ''}Context: ${guidanceContext}
 
-Remember to ask only ONE question that guides their thinking.`;
+Remember:
+- Ask ONE clear question (not multiple)
+- Adapt to their level based on what they're saying
+- Build on what they actually said
+- Never give solutions or code`;
 
     const url = `${GEMINI_BASE_URL}/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
     
@@ -293,7 +306,7 @@ Remember to ask only ONE question that guides their thinking.`;
       },
       generationConfig: {
         temperature: 0.7,
-        maxOutputTokens: 300,
+        maxOutputTokens: 500,
         topP: 0.95,
         topK: 40
       }
@@ -305,13 +318,13 @@ Remember to ask only ONE question that guides their thinking.`;
     });
 
     const message = response.data.candidates?.[0]?.content?.parts?.[0]?.text || 
-                   "Let's start simple. What do you think the problem is asking?";
+                   "What's the first thing you need to understand about this problem?";
 
     return { message };
   } catch (error) {
     console.error('Guided Thinking Error:', error.message);
     return {
-      message: "Let's start simple. What do you think the problem is asking?"
+      message: "What part of this problem is most confusing right now?"
     };
   }
 }

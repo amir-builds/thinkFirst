@@ -177,6 +177,7 @@ router.post(
 
     const result = await guidedThinking(problem, convo);
     
+    
     return res.status(200).json(new ApiResponse(200, result, "Guided thinking response generated"));
   })
 );

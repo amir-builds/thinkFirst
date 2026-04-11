@@ -25,6 +25,8 @@ export default function CodeEditor() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [readyToCode, setReadyToCode] = useState(false);
   const [executionError, setExecutionError] = useState("");
+  const [chatMode, setChatMode] = useState("mentor"); // 'mentor' | 'guided'
+  const [guidedMessages, setGuidedMessages] = useState([]);
 
   useEffect(() => {
     fetchQuestion();
@@ -229,16 +231,87 @@ export default function CodeEditor() {
     }
   };
 
+  const handleGuidedThinking = async (userMessage = null) => {
+    if (!userMessage && !currentInput.trim()) return;
+    if (isProcessing) return;
+
+    const message = userMessage || currentInput.trim();
+    setCurrentInput("");
+    setIsProcessing(true);
+
+    // Build the conversation snapshot BEFORE mutating state.
+    // Only include fully completed messages (no streaming placeholders, no empty texts).
+    const completedHistory = guidedMessages
+      .filter(msg => !msg.isStreaming && msg.text)
+      .map(msg => ({ role: msg.type, text: msg.text }));
+
+    // Append the new user message to the snapshot for the API call
+    const conversationForAPI = [
+      ...completedHistory,
+      { role: 'user', text: message }
+    ];
+
+    // Add user message to guided chat UI
+    setGuidedMessages(prev => [...prev, {
+      type: 'user',
+      text: message,
+      timestamp: new Date()
+    }]);
+
+    // Create placeholder for mentor response
+    const mentorMessageId = Date.now();
+    setGuidedMessages(prev => [...prev, {
+      id: mentorMessageId,
+      type: 'mentor',
+      text: '',
+      timestamp: new Date(),
+      isStreaming: true
+    }]);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/ai/guided-thinking`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          problem: question.description,
+          conversation: conversationForAPI
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to get guided thinking response');
+      }
+
+      const data = await response.json();
+      const mentorResponse = data.data?.message || "Let's start simple. What do you think the problem is asking?";
+
+      setGuidedMessages(prev => prev.map(msg => 
+        msg.id === mentorMessageId 
+          ? { ...msg, text: mentorResponse, isStreaming: false }
+          : msg
+      ));
+
+    } catch (error) {
+      console.error('Guided thinking error:', error);
+      toast.error("Failed to get guided thinking response");
+      setGuidedMessages(prev => prev.filter(msg => msg.id !== mentorMessageId));
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleKeyPressGuidedThinking = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleGuidedThinking();
+    }
+  };
+
   if (!question) {
     return <div style={styles.loading}>Loading...</div>;
   }
-
-  const getPlaceholder = () => {
-    if (messages.length === 0) {
-      return "Describe your approach (no code yet)…";
-    }
-    return "Respond to the mentor's question…";
-  };
 
   return (
     <div style={styles.container}>
@@ -287,59 +360,134 @@ export default function CodeEditor() {
         <div style={styles.chatSection}>
           <div style={styles.chatHeader}>
             <h3 style={styles.chatHeaderTitle}>🧠 ThinkFirst Mentor</h3>
+            <div style={styles.modeToggle}>
+              <button
+                onClick={() => { setChatMode("mentor"); setCurrentInput(""); }}
+                style={{
+                  ...styles.modeButton,
+                  ...(chatMode === "mentor" ? styles.modeButtonActive : styles.modeButtonInactive)
+                }}
+              >
+                💬 Mentor
+              </button>
+              <button
+                onClick={() => { setChatMode("guided"); setCurrentInput(""); }}
+                style={{
+                  ...styles.modeButton,
+                  ...(chatMode === "guided" ? styles.modeButtonActive : styles.modeButtonInactive)
+                }}
+              >
+                💭 Guided
+              </button>
+            </div>
           </div>
           
           <div style={styles.chatMessages}>
-            {messages.length === 0 ? (
-              // Empty State
-              <div style={styles.emptyState}>
-                <div style={styles.emptyIcon}>💭</div>
-                <h2 style={styles.emptyTitle}>Welcome to ThinkFirst</h2>
-                <p style={styles.emptyDescription}>
-                  Explain how you would approach the problem.<br />
-                  I'll guide your thinking — not give the answer.
-                </p>
-              </div>
-            ) : (
-              // Message History
-              messages.map((msg, index) => (
-                <div
-                  key={index}
-                  style={{
-                    ...styles.messageWrapper,
-                    justifyContent: msg.type === 'user' ? 'flex-end' : 'flex-start'
-                  }}
-                >
-                  <div
-                    style={{
-                      ...styles.message,
-                      ...(msg.type === 'user' ? styles.userMessage : styles.mentorMessage)
-                    }}
-                  >
-                    {msg.type === 'mentor' && (
-                      <div style={styles.mentorLabel}>ThinkFirst Mentor</div>
-                    )}
-                    <div style={styles.messageContent}>
-                      {msg.content || (msg.isStreaming && '...')}
-                    </div>
-                    {msg.readyToCode && (
-                      <div style={styles.readyBadge}>
-                        ✅ Ready to code!
-                      </div>
-                    )}
+            {chatMode === "mentor" ? (
+              // Mentor Mode
+              <>
+                {messages.length === 0 ? (
+                  <div style={styles.emptyState}>
+                    <div style={styles.emptyIcon}>💭</div>
+                    <h2 style={styles.emptyTitle}>Welcome to ThinkFirst</h2>
+                    <p style={styles.emptyDescription}>
+                      Explain how you would approach the problem.<br />
+                      I'll guide your thinking — not give the answer.
+                    </p>
                   </div>
-                </div>
-              ))
+                ) : (
+                  messages.map((msg, index) => (
+                    <div
+                      key={index}
+                      style={{
+                        ...styles.messageWrapper,
+                        justifyContent: msg.type === 'user' ? 'flex-end' : 'flex-start'
+                      }}
+                    >
+                      <div
+                        style={{
+                          ...styles.message,
+                          ...(msg.type === 'user' ? styles.userMessage : styles.mentorMessage)
+                        }}
+                      >
+                        {msg.type === 'mentor' && (
+                          <div style={styles.mentorLabel}>ThinkFirst Mentor</div>
+                        )}
+                        <div style={styles.messageContent}>
+                          {msg.content || (msg.isStreaming && '...')}
+                        </div>
+                        {msg.readyToCode && (
+                          <div style={styles.readyBadge}>
+                            ✅ Ready to code!
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+                
+                {isProcessing && messages[messages.length - 1]?.type === 'mentor' && (
+                  <div style={styles.thinkingIndicator}>
+                    <div style={styles.typingDot}></div>
+                    <div style={styles.typingDot}></div>
+                    <div style={styles.typingDot}></div>
+                  </div>
+                )}
+              </>
+            ) : (
+              // Guided Thinking Mode
+              <>
+                {guidedMessages.length === 0 ? (
+                  <div style={styles.emptyState}>
+                    <div style={styles.emptyIcon}>💭</div>
+                    <h2 style={styles.emptyTitle}>Guided Thinking</h2>
+                    <p style={styles.emptyDescription}>
+                      Describe your approach step-by-step.<br />
+                      I'll ask questions to help you think deeper.
+                    </p>
+                    <p 
+                      style={styles.helpText}
+                      onClick={() => handleGuidedThinking("I'm not sure where to start. Can you help me understand this problem?")}
+                      title="Get help starting"
+                    >
+                      not sure where to start?
+                    </p>
+                  </div>
+                ) : (
+                  guidedMessages.map((msg, index) => (
+                    <div
+                      key={index}
+                      style={{
+                        ...styles.messageWrapper,
+                        justifyContent: msg.type === 'user' ? 'flex-end' : 'flex-start'
+                      }}
+                    >
+                      <div
+                        style={{
+                          ...styles.message,
+                          ...(msg.type === 'user' ? styles.userMessage : styles.mentorMessage)
+                        }}
+                      >
+                        {msg.type === 'mentor' && (
+                          <div style={styles.mentorLabel}>Mentor</div>
+                        )}
+                        <div style={styles.messageContent}>
+                          {msg.text || (msg.isStreaming && '...')}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+                
+                {isProcessing && guidedMessages[guidedMessages.length - 1]?.type === 'mentor' && (
+                  <div style={styles.thinkingIndicator}>
+                    <div style={styles.typingDot}></div>
+                    <div style={styles.typingDot}></div>
+                    <div style={styles.typingDot}></div>
+                  </div>
+                )}
+              </>
             )}
-            
-            {isProcessing && messages[messages.length - 1]?.type === 'mentor' && (
-              <div style={styles.thinkingIndicator}>
-                <div style={styles.typingDot}></div>
-                <div style={styles.typingDot}></div>
-                <div style={styles.typingDot}></div>
-              </div>
-            )}
-            
             <div ref={chatEndRef} />
           </div>
 
@@ -350,8 +498,11 @@ export default function CodeEditor() {
                 ref={inputRef}
                 value={currentInput}
                 onChange={(e) => setCurrentInput(e.target.value)}
-                onKeyDown={handleKeyPress}
-                placeholder={getPlaceholder()}
+                onKeyDown={chatMode === "mentor" ? handleKeyPress : handleKeyPressGuidedThinking}
+                placeholder={chatMode === "mentor" 
+                  ? (messages.length === 0 ? "Describe your approach (no code yet)…" : "Respond to the mentor's question…")
+                  : "Describe your approach (no code yet)…"
+                }
                 disabled={isProcessing}
                 style={{
                   ...styles.chatInput,
@@ -364,7 +515,7 @@ export default function CodeEditor() {
                 }}
               />
               <button
-                onClick={handleSendMessage}
+                onClick={chatMode === "mentor" ? handleSendMessage : () => handleGuidedThinking()}
                 disabled={!currentInput.trim() || isProcessing}
                 style={{
                   ...styles.sendButton,
@@ -377,7 +528,9 @@ export default function CodeEditor() {
               </button>
             </div>
             {isProcessing && (
-              <div style={styles.processingText}>Mentor is thinking...</div>
+              <div style={styles.processingText}>
+                {chatMode === "mentor" ? "Mentor is thinking..." : "Analyzing your approach..."}
+              </div>
             )}
           </div>
         </div>
@@ -572,13 +725,41 @@ const styles = {
   chatHeader: {
     padding: "16px 24px",
     backgroundColor: "#252526",
-    borderBottom: "1px solid #3c3c3c"
+    borderBottom: "1px solid #3c3c3c",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center"
   },
   chatHeaderTitle: {
     fontSize: "16px",
     fontWeight: "600",
     margin: 0,
     color: "white"
+  },
+  modeToggle: {
+    display: "flex",
+    gap: "8px"
+  },
+  modeButton: {
+    padding: "6px 14px",
+    border: "1px solid #3c3c3c",
+    borderRadius: "6px",
+    fontSize: "12px",
+    fontWeight: "600",
+    cursor: "pointer",
+    transition: "all 0.2s",
+    textTransform: "uppercase",
+    letterSpacing: "0.5px"
+  },
+  modeButtonActive: {
+    backgroundColor: "#6366f1",
+    color: "white",
+    borderColor: "#6366f1"
+  },
+  modeButtonInactive: {
+    backgroundColor: "transparent",
+    color: "#9ca3af",
+    borderColor: "#3c3c3c"
   },
   chatMessages: {
     flex: 1,
@@ -610,6 +791,15 @@ const styles = {
     color: "#9ca3af",
     lineHeight: "1.6",
     maxWidth: "400px"
+  },
+  helpText: {
+    marginTop: "24px",
+    fontSize: "13px",
+    color: "#6366f1",
+    fontStyle: "italic",
+    fontWeight: "500",
+    cursor: "pointer",
+    transition: "all 0.2s",
   },
   messageWrapper: {
     display: "flex",
