@@ -9,6 +9,10 @@ export default function Navbar() {
 
   const handleNavClick = (label) => {
     if (label === "Practice") navigate("/practice");
+    if (label === "How it works") {
+      const el = document.getElementById("how-it-works");
+      if (el) el.scrollIntoView({ behavior: "smooth" });
+    }
   };
 
   return (

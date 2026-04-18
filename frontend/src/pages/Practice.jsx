@@ -41,7 +41,7 @@ export default function Practice() {
   return (
     <div style={styles.container}>
       <div style={styles.header}>
-        <h1>Practice Coding</h1>
+        <h1 style={styles.title}>Practice Coding</h1>
         <button onClick={() => navigate("/")} style={styles.backButton}>
           ← Back to Home
         </button>
@@ -90,8 +90,10 @@ export default function Practice() {
 const styles = {
   container: {
     minHeight: "100vh",
-    backgroundColor: "#f3f4f6",
-    padding: "40px 20px"
+    backgroundColor: "#1e1e1e",
+    fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+    padding: "40px 20px",
+    color: "white"
   },
   header: {
     maxWidth: "1200px",
@@ -100,18 +102,27 @@ const styles = {
     justifyContent: "space-between",
     alignItems: "center"
   },
+  title: {
+    margin: 0,
+    fontSize: "24px",
+    fontWeight: "600"
+  },
   backButton: {
-    padding: "10px 20px",
-    backgroundColor: "#6366f1",
-    color: "white",
-    border: "none",
+    padding: "10px 16px",
+    backgroundColor: "transparent",
+    color: "#9ca3af",
+    border: "1px solid #3c3c3c",
     borderRadius: "8px",
-    fontSize: "16px"
+    fontSize: "14px",
+    cursor: "pointer",
+    transition: "all 0.2s",
+    fontWeight: "500"
   },
   loading: {
     textAlign: "center",
     fontSize: "20px",
-    marginTop: "100px"
+    marginTop: "100px",
+    color: "#d1d5db"
   },
   questionList: {
     maxWidth: "1200px",
@@ -125,19 +136,18 @@ const styles = {
     textAlign: "center",
     padding: "60px",
     fontSize: "18px",
-    color: "#6b7280"
+    color: "#9ca3af"
   },
   questionCard: {
-    backgroundColor: "white",
+    backgroundColor: "#252526",
     padding: "20px",
     borderRadius: "12px",
-    boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+    border: "1px solid #3c3c3c",
     cursor: "pointer",
     transition: "all 0.3s",
-    ":hover": {
-      transform: "translateY(-4px)",
-      boxShadow: "0 4px 12px rgba(0,0,0,0.15)"
-    }
+    boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+    display: "flex",
+    flexDirection: "column"
   },
   questionHeader: {
     display: "flex",
@@ -148,8 +158,9 @@ const styles = {
   questionTitle: {
     fontSize: "18px",
     fontWeight: "600",
-    color: "#1f2937",
-    flex: 1
+    color: "#f3f4f6",
+    flex: 1,
+    margin: "0 10px 0 0"
   },
   badge: {
     padding: "4px 12px",
@@ -159,18 +170,19 @@ const styles = {
     fontWeight: "600"
   },
   questionDescription: {
-    color: "#6b7280",
+    color: "#9ca3af",
     fontSize: "14px",
     marginBottom: "15px",
-    lineHeight: "1.5"
+    lineHeight: "1.6"
   },
   questionFooter: {
-    borderTop: "1px solid #e5e7eb",
-    paddingTop: "10px"
+    borderTop: "1px solid #3c3c3c",
+    paddingTop: "12px",
+    marginTop: "auto"
   },
   category: {
     fontSize: "12px",
-    color: "#6366f1",
+    color: "#818cf8",
     fontWeight: "600"
   }
 };

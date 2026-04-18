@@ -96,7 +96,10 @@ async function getNonStreamResponse(requestPayload) {
       'ready to try coding',
       'ready to code',
       'you can now try coding',
-      'you can try coding now'
+      'you can try coding now',
+      'ready to write',
+      'translate this into code',
+      'start writing this out'
     ];
     const readyToCode = readySignals.some(signal =>
       aiMessage.toLowerCase().includes(signal)
@@ -137,7 +140,10 @@ async function streamResponse(requestPayload, res) {
       'ready to try coding',
       'ready to code',
       'you can now try coding',
-      'you can try coding now'
+      'you can try coding now',
+      'ready to write',
+      'translate this into code',
+      'start writing this out'
     ];
 
     // Don't set headers here - they should be set in the route before calling this function
@@ -250,81 +256,77 @@ const guidedThinkingPrompt = fs.readFileSync(
   'utf-8'
 );
 
+// ESM-safe dynamic import for google-auth-library
+async function getGoogleAccessToken() {
+  const { GoogleAuth } = await import('google-auth-library');
+  const auth = new GoogleAuth({
+    keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS,
+    scopes: ['https://www.googleapis.com/auth/cloud-platform'],
+  });
+  const client = await auth.getClient();
+  const tokenResponse = await client.getAccessToken();
+  return tokenResponse.token;
+}
+
 export async function guidedThinking(problem, conversation = []) {
   try {
-    const messageCount = conversation.length;
-    
-    // Determine guidance level based on conversation depth
-    let guidanceContext = '';
-    if (messageCount === 0) {
-      // First message - student is just starting
-      guidanceContext = 'This is the first response. They may be confused about where to start.';
-    } else if (messageCount < 3) {
-      // Early in conversation - help them understand and break down
-      guidanceContext = 'Early in conversation. Help them break down the problem.';
-    } else if (messageCount < 6) {
-      // Middle of conversation - challenge thinking
-      guidanceContext = 'Middle of conversation. Guide toward deeper understanding and edge cases.';
-    } else {
-      // Later in conversation - less guiding, more affirmation
-      guidanceContext = 'Deeper in conversation. They should be near ready. Ask strategic questions.';
+    // Build conversation in Gemini format
+    const contents = conversation.map(msg => ({
+      role: msg.role === 'user' ? 'user' : 'model',
+      parts: [{ text: msg.text || '' }]
+    }));
+
+    // Seed with opening message if conversation is empty
+    if (contents.length === 0) {
+      contents.push({
+        role: 'user',
+        parts: [{ text: `I need help with this problem: ${problem}` }]
+      });
     }
 
-    const conversationText = conversation
-      .map(msg => `${msg.role === 'user' ? 'Student' : 'Mentor'}: ${msg.text}`)
-      .join('\n');
+    const systemWithProblem = `${guidedThinkingPrompt}
 
-    const userPrompt = `Problem: ${problem}
-
-${conversationText ? `Conversation so far:\n${conversationText}\n` : ''}Context: ${guidanceContext}
-
-Remember:
-- Ask ONE clear question (not multiple)
-- Adapt to their level based on what they're saying
-- Build on what they actually said
-- Never give solutions or code`;
+---
+CURRENT PROBLEM THE STUDENT IS WORKING ON:
+${problem}
+---`;
 
     const url = `${GEMINI_BASE_URL}/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
-    
+
     const requestPayload = {
-      contents: [
-        {
-          role: 'user',
-          parts: [
-            {
-              text: userPrompt
-            }
-          ]
-        }
-      ],
+      contents,
       systemInstruction: {
-        parts: [
-          {
-            text: guidedThinkingPrompt
-          }
-        ]
+        parts: [{ text: systemWithProblem }]
       },
       generationConfig: {
         temperature: 0.7,
-        maxOutputTokens: 500,
+        maxOutputTokens: 600,
         topP: 0.95,
-        topK: 40
       }
     };
 
     const response = await axios.post(url, requestPayload, {
       headers: { 'Content-Type': 'application/json' },
-      timeout: 30000
+      timeout: 30000,
     });
 
-    const message = response.data.candidates?.[0]?.content?.parts?.[0]?.text || 
-                   "What's the first thing you need to understand about this problem?";
+    const message = response.data.candidates?.[0]?.content?.parts?.[0]?.text ||
+      "What part of this problem is most confusing right now?";
+
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[Guided Thinking - Gemini] Response received`);
+    }
 
     return { message };
+
   } catch (error) {
     console.error('Guided Thinking Error:', error.message);
+    if (error.response?.data) {
+      console.error('API Error:', JSON.stringify(error.response.data));
+    }
     return {
       message: "What part of this problem is most confusing right now?"
     };
   }
 }
+

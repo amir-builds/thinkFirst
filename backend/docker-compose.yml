@@ -14,6 +14,7 @@ services:
     volumes:
       - .:/app
       - /app/node_modules
+      - ./gcp-credentials.json:/app/gcp-credentials.json:ro
     restart: on-failure
     command: ["node", "src/index.js"]
     env_file:
