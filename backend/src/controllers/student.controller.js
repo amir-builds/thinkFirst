@@ -8,6 +8,8 @@ import { ApiResponse } from "../utils/apiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import redisClient from "../utils/redisClient.js";
 import { sendStudentOTPEmail } from "../mails/sendStudentOTP.js";
+import { runJudge0 } from "../services/judge.service.js";
+import { compareOutput } from "../utils/compare.js";
 
 const getFrontendUrl = () => process.env.FRONTEND_URL || "http://localhost:3000";
 
@@ -474,12 +476,101 @@ export const updateStudentProfile = asyncHandler(async (req, res) => {
   
   await studentInstance.db.execute(
     "UPDATE students SET name = ?, bio = ?, updatedAt = CURRENT_TIMESTAMP WHERE id = ?",
-    [name || req.student.name, bio, studentId]
+    [name || req.student.name, bio ?? null, studentId]
   );
 
   const updatedStudent = await studentInstance.findById(studentId);
 
   return res.json(
-    new ApiResponse(200, updatedStudent, "Profile updated successfully")
+    new ApiResponse(200, { student: sanitizeStudent(updatedStudent) }, "Profile updated successfully")
   );
+});
+
+// Get recent student activity (solved / attempted problems)
+export const getStudentActivity = asyncHandler(async (req, res) => {
+  const student = req.student;
+
+  if (!student) {
+    throw new ApiError(401, "Not authenticated");
+  }
+
+  const studentInstance = new Student(req.app.locals.db);
+  const [activity, heatmap] = await Promise.all([
+    studentInstance.getRecentActivity(student.id, 15),
+    studentInstance.getActivityHeatmap(student.id),
+  ]);
+
+  return res.json(
+    new ApiResponse(200, { activity, heatmap }, "Activity retrieved successfully")
+  );
+});
+
+// Get full profile data (stats + activity)
+export const getStudentProfileData = asyncHandler(async (req, res) => {
+  const student = req.student;
+
+  if (!student) {
+    throw new ApiError(401, "Not authenticated");
+  }
+
+  const studentInstance = new Student(req.app.locals.db);
+  const [stats, activity, heatmap] = await Promise.all([
+    studentInstance.getStudentStats(student.id),
+    studentInstance.getRecentActivity(student.id, 10),
+    studentInstance.getActivityHeatmap(student.id),
+  ]);
+
+  return res.json(
+    new ApiResponse(
+      200,
+      { student: sanitizeStudent(student), stats, activity, heatmap },
+      "Profile data retrieved successfully"
+    )
+  );
+});
+
+/**
+ * Submit a solution attempt.
+ * The frontend sends: questionId, status ('solved'|'attempted'),
+ * thinkingTime (s), codingTime (s), codeSubmitted, allPassed (bool).
+ * We upsert into studentProgress — one row per (studentId, questionId),
+ * always updating to the best status seen.
+ */
+export const submitSolution = asyncHandler(async (req, res) => {
+  const student = req.student;
+  if (!student) throw new ApiError(401, "Not authenticated");
+
+  const { questionId, status, thinkingTime = 0, codingTime = 0, codeSubmitted = "" } = req.body;
+
+  if (!questionId) throw new ApiError(400, "questionId is required");
+  if (!["solved", "attempted"].includes(status)) throw new ApiError(400, "status must be 'solved' or 'attempted'");
+
+  const db = req.app.locals.db;
+  const id = crypto.randomUUID();
+
+  // Check if a progress row already exists for this student+question
+  const [existing] = await db.execute(
+    "SELECT id, status FROM studentProgress WHERE studentId = ? AND questionId = ?",
+    [student.id, questionId]
+  );
+
+  if (existing.length > 0) {
+    // Only upgrade status (attempted → solved), never downgrade
+    const newStatus = (status === "solved") ? "solved" : existing[0].status;
+    await db.execute(
+      `UPDATE studentProgress
+       SET status = ?, thinkingTime = ?, codingTime = ?, codeSubmitted = ?, updatedAt = CURRENT_TIMESTAMP
+       WHERE studentId = ? AND questionId = ?`,
+      [newStatus, thinkingTime, codingTime, codeSubmitted, student.id, questionId]
+    );
+  } else {
+    // First attempt
+    await db.execute(
+      `INSERT INTO studentProgress (id, studentId, questionId, status, thinkingTime, codingTime, codeSubmitted)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [id, student.id, questionId, status, thinkingTime, codingTime, codeSubmitted]
+    );
+  }
+
+  return res.json(new ApiResponse(200, { status }, "Solution submitted successfully"));
 });

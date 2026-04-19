@@ -9,6 +9,9 @@ import {
   updateStudentProfile,
   verifyStudentEmail,
   resendStudentOTP,
+  getStudentActivity,
+  getStudentProfileData,
+  submitSolution,
 } from "../controllers/student.controller.js";
 import { verifyStudentJWT } from "../middlewares/studentAuth.middleware.js";
 
@@ -28,5 +31,8 @@ router.get("/oauth/:provider/callback", handleStudentOAuthCallback);
 router.get("/current", verifyStudentJWT, getCurrentStudent);
 router.post("/logout", verifyStudentJWT, studentLogout);
 router.put("/profile", verifyStudentJWT, updateStudentProfile);
+router.get("/activity", verifyStudentJWT, getStudentActivity);
+router.get("/profile-data", verifyStudentJWT, getStudentProfileData);
+router.post("/submit", verifyStudentJWT, submitSolution);
 
 export default router;

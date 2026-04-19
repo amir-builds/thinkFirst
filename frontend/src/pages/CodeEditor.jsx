@@ -3,12 +3,14 @@ import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import toast from "react-hot-toast";
 import Editor from "@monaco-editor/react";
+import { useAuth } from "../contexts/AuthContext";
 
 const API_BASE_URL = "http://localhost:8000/api/v1";
 
 export default function CodeEditor() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { student } = useAuth();
   const chatEndRef = useRef(null);
   const inputRef = useRef(null);
   
@@ -18,6 +20,15 @@ export default function CodeEditor() {
   const [output, setOutput] = useState("");
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false); // show success banner
+  const [submitStatus, setSubmitStatus] = useState(null); // 'solved' | 'attempted'
+
+  // Timing
+  const thinkingStartRef = useRef(Date.now());
+  const codingStartRef = useRef(null);
+  const [thinkingTime, setThinkingTime] = useState(0); // seconds
+  const [codingTime, setCodingTime] = useState(0);     // seconds
 
   // Chat state
   const [messages, setMessages] = useState([]);
@@ -27,10 +38,22 @@ export default function CodeEditor() {
   const [executionError, setExecutionError] = useState("");
   const [chatMode, setChatMode] = useState("mentor"); // 'mentor' | 'guided'
   const [guidedMessages, setGuidedMessages] = useState([]);
+  const [mentorSessionId, setMentorSessionId] = useState(null); // Redis session ID for conversation continuity
 
   useEffect(() => {
     fetchQuestion();
+    // Start thinking timer
+    thinkingStartRef.current = Date.now();
   }, [id]);
+
+  // When editor unlocks, snapshot thinking time and start coding timer
+  useEffect(() => {
+    if (readyToCode && !codingStartRef.current) {
+      const elapsed = Math.round((Date.now() - thinkingStartRef.current) / 1000);
+      setThinkingTime(elapsed);
+      codingStartRef.current = Date.now();
+    }
+  }, [readyToCode]);
 
   const fetchQuestion = async () => {
     try {
@@ -49,6 +72,7 @@ export default function CodeEditor() {
     setOutput("");
     setResults(null);
     setExecutionError("");
+    setSubmitted(false);
 
     try {
       const response = await axios.post(`${API_BASE_URL}/runcode/execute`, {
@@ -77,6 +101,54 @@ export default function CodeEditor() {
       setExecutionError(errorMsg);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!student) {
+      toast.error("Please log in to submit");
+      navigate("/student/login");
+      return;
+    }
+    if (!results) {
+      toast.error("Run your code first before submitting");
+      return;
+    }
+
+    setSubmitting(true);
+    const allPassed = results.results.every((r) => r.pass);
+    const status = allPassed ? "solved" : "attempted";
+    const currentCodingTime = codingStartRef.current
+      ? Math.round((Date.now() - codingStartRef.current) / 1000)
+      : 0;
+
+    try {
+      await axios.post(
+        `${API_BASE_URL}/student/submit`,
+        {
+          questionId: id,
+          status,
+          thinkingTime,
+          codingTime: currentCodingTime,
+          codeSubmitted: code,
+        },
+        { withCredentials: true }
+      );
+
+      setSubmitStatus(status);
+      setSubmitted(true);
+      setCodingTime(currentCodingTime);
+
+      if (allPassed) {
+        toast.success("🎉 Solution submitted as Solved!");
+      } else {
+        toast("📝 Submitted as Attempted. Keep trying!", { icon: "💪" });
+      }
+    } catch (err) {
+      const msg = err.response?.data?.message || "Submission failed";
+      toast.error(msg);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -116,7 +188,8 @@ export default function CodeEditor() {
         },
         body: JSON.stringify({
           problem: question.description,
-          plan: userMessage
+          plan: userMessage,
+          sessionId: mentorSessionId // Send existing session ID so the backend can load history from Redis
         })
       });
 
@@ -160,7 +233,11 @@ export default function CodeEditor() {
               const chunk = JSON.parse(line);
               console.log('Parsed chunk type:', chunk.type);
               
-              if (chunk.type === 'chunk') {
+              if (chunk.type === 'session') {
+                // Capture the session ID returned by backend on first message
+                console.log('Received session ID:', chunk.sessionId);
+                setMentorSessionId(chunk.sessionId);
+              } else if (chunk.type === 'chunk') {
                 fullMessage += chunk.content;
                 console.log('Full message length:', fullMessage.length);
                 // Update the streaming message
@@ -566,7 +643,19 @@ export default function CodeEditor() {
                   opacity: loading || !readyToCode ? 0.5 : 1
                 }}
               >
-                {loading ? "Running..." : "▶ Run Code"}
+                {loading ? "Running..." : "▶ Run"}
+              </button>
+
+              <button
+                id="submit-solution-btn"
+                onClick={handleSubmit}
+                disabled={submitting || !readyToCode || !results}
+                style={{
+                  ...styles.submitButton,
+                  opacity: submitting || !readyToCode || !results ? 0.45 : 1
+                }}
+              >
+                {submitting ? "Submitting…" : "✔ Submit"}
               </button>
             </div>
           </div>
@@ -596,6 +685,40 @@ export default function CodeEditor() {
               }}
             />
           </div>
+
+          {/* Submission success banner */}
+          {submitted && (
+            <div style={{
+              margin: "0 24px 0",
+              padding: "14px 18px",
+              borderRadius: 8,
+              background: submitStatus === "solved"
+                ? "rgba(16,185,129,0.12)" : "rgba(251,191,36,0.12)",
+              border: `1px solid ${submitStatus === "solved" ? "#10b981" : "#fbbf24"}`,
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              gap: 12,
+            }}>
+              <div>
+                <p style={{ margin: 0, fontWeight: 700, fontSize: 14,
+                  color: submitStatus === "solved" ? "#10b981" : "#fbbf24" }}>
+                  {submitStatus === "solved" ? "🎉 Solved!" : "💪 Submitted as Attempted"}
+                </p>
+                <p style={{ margin: "3px 0 0", fontSize: 12, color: "#9ca3af" }}>
+                  {submitStatus === "solved"
+                    ? "Great work! This problem is marked solved on your profile."
+                    : "Keep going! Re-run and submit again once all tests pass."}
+                </p>
+              </div>
+              <button
+                onClick={() => navigate("/student/profile")}
+                style={{ padding: "6px 14px", background: "#e8c547", border: "none",
+                  borderRadius: 6, color: "#080810", fontWeight: 700, fontSize: 12,
+                  cursor: "pointer", whiteSpace: "nowrap" }}
+              >
+                View Profile
+              </button>
+            </div>
+          )}
 
           <div style={styles.outputSection}>
             <h3 style={styles.outputTitle}>Output</h3>
@@ -955,13 +1078,24 @@ const styles = {
     cursor: "pointer"
   },
   runButton: {
-    padding: "8px 20px",
+    padding: "8px 16px",
     backgroundColor: "#10b981",
     color: "white",
     border: "none",
     borderRadius: "6px",
     fontSize: "14px",
     fontWeight: "600",
+    cursor: "pointer",
+    transition: "all 0.2s"
+  },
+  submitButton: {
+    padding: "8px 16px",
+    backgroundColor: "#e8c547",
+    color: "#080810",
+    border: "none",
+    borderRadius: "6px",
+    fontSize: "14px",
+    fontWeight: "700",
     cursor: "pointer",
     transition: "all 0.2s"
   },

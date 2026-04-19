@@ -8,6 +8,7 @@ import AdminDashboard from "./admin/AdminDashboard.jsx";
 import StudentLogin from "./pages/StudentLogin.jsx";
 import StudentRegister from "./pages/StudentRegister.jsx";
 import StudentDashboard from "./pages/StudentDashboard.jsx";
+import StudentProfile from "./pages/StudentProfile.jsx";
 
 function App() {
   return (
@@ -25,6 +26,7 @@ function App() {
         <Route path="/student/login" element={<StudentLogin />} />
         <Route path="/student/register" element={<StudentRegister />} />
         <Route path="/student/dashboard" element={<StudentDashboard />} />
+        <Route path="/student/profile" element={<StudentProfile />} />
         
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
@@ -33,3 +35,4 @@ function App() {
 }
 
 export default App;
+

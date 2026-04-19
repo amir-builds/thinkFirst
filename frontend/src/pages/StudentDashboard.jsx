@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Button from "../components/ui/Button";
+import { useAuth } from "../contexts/AuthContext";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api/v1";
 
 export default function StudentDashboard() {
   const navigate = useNavigate();
+  const { logout: authLogout } = useAuth();
   const [student, setStudent] = useState(null);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -41,15 +43,7 @@ export default function StudentDashboard() {
   };
 
   const handleLogout = async () => {
-    try {
-      await fetch(`${API_BASE}/student/logout`, {
-        method: "POST",
-        credentials: "include",
-      });
-    } catch (err) {
-      console.error("Logout error:", err);
-    }
-
+    await authLogout();
     navigate("/");
   };
 

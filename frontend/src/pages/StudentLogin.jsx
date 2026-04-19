@@ -3,12 +3,14 @@ import { useLocation, useNavigate, Link } from "react-router-dom";
 import Button from "../components/ui/Button";
 import { FcGoogle } from "react-icons/fc";
 import { FaGithub } from "react-icons/fa";
+import { useAuth } from "../contexts/AuthContext";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api/v1";
 
 export default function StudentLogin() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { refetch } = useAuth();
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -50,6 +52,7 @@ export default function StudentLogin() {
         return;
       }
 
+      await refetch();  // update navbar immediately
       navigate("/student/dashboard");
     } catch (err) {
       setError("Network error. Please try again.");
