@@ -1,13 +1,13 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 
-const footerLinks = ["Practice", "GitHub"];
+const footerLinks = ["Problems", "GitHub"];
 
 export default function Footer() {
   const navigate = useNavigate();
 
   const handleClick = (label) => {
-    if (label === "Practice") navigate("/practice");
+    if (label === "Problems") navigate("/practice");
   };
 
   return (

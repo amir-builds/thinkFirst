@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Button from "../ui/Button";
 
 const defaultActions = [
-  { label: "Start Practice", path: "/practice", variant: "primary" },
+  { label: "Start Solving", path: "/practice", variant: "primary" },
 ];
 
 export default function NavButtons({ actions = defaultActions }) {

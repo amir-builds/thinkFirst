@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Button from "../ui/Button";
 import { useAuth } from "../../contexts/AuthContext";
 
-const navLinks = ["Practice", "How it works"];
+const navLinks = ["Problems", "How it works"];
 
 /** Generate a gradient avatar colour from the student's name */
 function getAvatarGradient(name = "") {
@@ -38,7 +38,7 @@ export default function Navbar() {
   }, []);
 
   const handleNavClick = (label) => {
-    if (label === "Practice") navigate("/practice");
+    if (label === "Problems") navigate("/practice");
     if (label === "How it works") {
       const el = document.getElementById("how-it-works");
       if (el) el.scrollIntoView({ behavior: "smooth" });
@@ -167,7 +167,7 @@ export default function Navbar() {
                 {[
                   { label: "My Profile", icon: "👤", action: () => { setDropdownOpen(false); navigate("/student/profile"); } },
                   { label: "Dashboard", icon: "📊", action: () => { setDropdownOpen(false); navigate("/student/dashboard"); } },
-                  { label: "Practice", icon: "⚡", action: () => { setDropdownOpen(false); navigate("/practice"); } },
+                  { label: "Problems", icon: "⚡", action: () => { setDropdownOpen(false); navigate("/practice"); } },
                 ].map((item) => (
                   <button
                     key={item.label}

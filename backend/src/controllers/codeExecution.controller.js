@@ -774,8 +774,8 @@ export const executeCode = asyncHandler(async (req, res) => {
       expectedOutputs.push(expected);
     });
   } else if (question) {
-    // Fallback to sample_input1, sample_output1, etc. up to 3
-    for (let i = 1; i <= 3; i++) {
+    // Fallback to sample_input1, sample_output1, etc. up to 10
+    for (let i = 1; i <= 10; i++) {
       const input = question[`sample_input${i}`];
       const output = question[`sample_output${i}`];
       if (input !== undefined && input !== null && output !== undefined && output !== null) {

@@ -75,6 +75,20 @@ export default function AdminDashboard() {
         sample_output2: testCases[1]?.output || null,
         sample_input3: testCases[2]?.input || null,
         sample_output3: testCases[2]?.output || null,
+        sample_input4: testCases[3]?.input || null,
+        sample_output4: testCases[3]?.output || null,
+        sample_input5: testCases[4]?.input || null,
+        sample_output5: testCases[4]?.output || null,
+        sample_input6: testCases[5]?.input || null,
+        sample_output6: testCases[5]?.output || null,
+        sample_input7: testCases[6]?.input || null,
+        sample_output7: testCases[6]?.output || null,
+        sample_input8: testCases[7]?.input || null,
+        sample_output8: testCases[7]?.output || null,
+        sample_input9: testCases[8]?.input || null,
+        sample_output9: testCases[8]?.output || null,
+        sample_input10: testCases[9]?.input || null,
+        sample_output10: testCases[9]?.output || null,
       };
       
       await axios.post(`${API_BASE_URL}/questions/create`, questionData, {
@@ -100,6 +114,20 @@ export default function AdminDashboard() {
         sample_output2: testCases[1]?.output || null,
         sample_input3: testCases[2]?.input || null,
         sample_output3: testCases[2]?.output || null,
+        sample_input4: testCases[3]?.input || null,
+        sample_output4: testCases[3]?.output || null,
+        sample_input5: testCases[4]?.input || null,
+        sample_output5: testCases[4]?.output || null,
+        sample_input6: testCases[5]?.input || null,
+        sample_output6: testCases[5]?.output || null,
+        sample_input7: testCases[6]?.input || null,
+        sample_output7: testCases[6]?.output || null,
+        sample_input8: testCases[7]?.input || null,
+        sample_output8: testCases[7]?.output || null,
+        sample_input9: testCases[8]?.input || null,
+        sample_output9: testCases[8]?.output || null,
+        sample_input10: testCases[9]?.input || null,
+        sample_output10: testCases[9]?.output || null,
       };
       
       await axios.put(`${API_BASE_URL}/questions/update/${editingQuestion.id}`, questionData, {
@@ -124,14 +152,10 @@ export default function AdminDashboard() {
     });
     
     const cases = [];
-    if (question.sample_input1 && question.sample_output1) {
-      cases.push({ input: question.sample_input1, output: question.sample_output1 });
-    }
-    if (question.sample_input2 && question.sample_output2) {
-      cases.push({ input: question.sample_input2, output: question.sample_output2 });
-    }
-    if (question.sample_input3 && question.sample_output3) {
-      cases.push({ input: question.sample_input3, output: question.sample_output3 });
+    for (let i = 1; i <= 10; i++) {
+      const inp = question[`sample_input${i}`];
+      const out = question[`sample_output${i}`];
+      if (inp && out) cases.push({ input: inp, output: out });
     }
     if (cases.length === 0) {
       cases.push({ input: "", output: "" });
@@ -155,10 +179,10 @@ export default function AdminDashboard() {
   };
 
   const addTestCase = () => {
-    if (testCases.length < 3) {
+    if (testCases.length < 10) {
       setTestCases([...testCases, { input: "", output: "" }]);
     } else {
-      toast.error("Maximum 3 test cases allowed");
+      toast.error("Maximum 10 test cases allowed");
     }
   };
 
@@ -334,7 +358,7 @@ export default function AdminDashboard() {
                   <button
                     type="button"
                     onClick={addTestCase}
-                    disabled={testCases.length >= 3}
+                    disabled={testCases.length >= 10}
                     className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
                   >
                     + Add Test Case

@@ -113,17 +113,19 @@ class Student {
 
   async getActivityHeatmap(studentId) {
     // Returns daily activity counts for the past year.
-    // DATE_FORMAT returns a plain string (e.g. "2026-04-19") so mysql2
-    // does NOT convert it to a Date object — avoiding the UTC-offset bug
-    // where midnight IST becomes the previous day when using toISOString().
+    // We use updatedAt (not createdAt) so that re-submissions / solve upgrades
+    // (which only touch updatedAt) are also reflected on the correct day.
+    // DATE_FORMAT returns a plain string so mysql2 does NOT convert it to a
+    // Date object — avoiding the UTC-offset bug where midnight IST becomes
+    // the previous day when using toISOString().
     const [rows] = await this.db.execute(
       `SELECT 
-        DATE_FORMAT(createdAt, '%Y-%m-%d') as date,
+        DATE_FORMAT(updatedAt, '%Y-%m-%d') as date,
         COUNT(*) as count
        FROM studentProgress
        WHERE studentId = ?
-         AND createdAt >= DATE_SUB(CURDATE(), INTERVAL 1 YEAR)
-       GROUP BY DATE_FORMAT(createdAt, '%Y-%m-%d')
+         AND updatedAt >= DATE_SUB(CURDATE(), INTERVAL 1 YEAR)
+       GROUP BY DATE_FORMAT(updatedAt, '%Y-%m-%d')
        ORDER BY date ASC`,
       [studentId]
     );

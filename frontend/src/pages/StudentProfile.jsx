@@ -28,10 +28,19 @@ function relativeTime(dateStr) {
 }
 
 /* Build a 52-week × 7-day heatmap grid */
+function toLocalISO(d) {
+  // Returns YYYY-MM-DD in LOCAL timezone (not UTC) to match the DB's DATE_FORMAT output
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 function buildHeatmapGrid(heatmapData = []) {
   const byDate = {};
   heatmapData.forEach(({ date, count }) => {
-    byDate[date instanceof Date ? date.toISOString().slice(0, 10) : String(date).slice(0, 10)] = Number(count);
+    // date from backend is already a plain 'YYYY-MM-DD' string
+    byDate[String(date).slice(0, 10)] = Number(count);
   });
 
   const today = new Date();
@@ -47,7 +56,7 @@ function buildHeatmapGrid(heatmapData = []) {
   for (let w = 0; w < numWeeks; w++) {
     const week = [];
     for (let d = 0; d < 7; d++) {
-      const iso = cursor.toISOString().slice(0, 10);
+      const iso = toLocalISO(cursor); // use LOCAL date, not UTC
       week.push({ date: iso, count: byDate[iso] || 0 });
       cursor.setDate(cursor.getDate() + 1);
     }

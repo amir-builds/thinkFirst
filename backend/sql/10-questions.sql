@@ -12,13 +12,27 @@ CREATE TABLE IF NOT EXISTS questions (
     category ENUM('DSA', 'SQL') NOT NULL DEFAULT 'DSA',
     is_public BOOLEAN DEFAULT FALSE,
     
-    -- For DSA questions
+    -- For DSA questions (up to 10 test cases)
     sample_input1 TEXT,
     sample_output1 TEXT,
     sample_input2 TEXT,
     sample_output2 TEXT,
     sample_input3 TEXT,
     sample_output3 TEXT,
+    sample_input4 TEXT,
+    sample_output4 TEXT,
+    sample_input5 TEXT,
+    sample_output5 TEXT,
+    sample_input6 TEXT,
+    sample_output6 TEXT,
+    sample_input7 TEXT,
+    sample_output7 TEXT,
+    sample_input8 TEXT,
+    sample_output8 TEXT,
+    sample_input9 TEXT,
+    sample_output9 TEXT,
+    sample_input10 TEXT,
+    sample_output10 TEXT,
     
     -- For SQL questions
     schema_sql TEXT,

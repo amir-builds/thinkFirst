@@ -1,7 +1,88 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import Button from "../ui/Button";
 import CodeSnippet from "./CodeSnippet";
+
+// Uppercase so textTransform doesn't affect rendering inconsistently
+const FULL_TEXT   = "THINK. PLAN. CODE.";
+const CHAR_DELAY  = 120;  // ms per char — typing speed
+const ERASE_DELAY = 55;   // ms per char — erase speed
+const DOT_PAUSE   = 480;  // extra pause after each "."
+const END_PAUSE   = 1500; // pause when fully typed before erasing
+const START_PAUSE = 600;  // pause when fully erased before re-typing
+
+function ThinkPlanCode() {
+  const [displayed, setDisplayed] = useState("");
+  const timerRef = useRef(null);
+
+  useEffect(() => {
+    let index    = 0;
+    let isErase  = false;
+
+    function tick() {
+      if (!isErase) {
+        if (index < FULL_TEXT.length) {
+          index++;
+          setDisplayed(FULL_TEXT.slice(0, index));
+          const ch    = FULL_TEXT[index - 1];
+          const delay = ch === "." ? CHAR_DELAY + DOT_PAUSE : CHAR_DELAY;
+          timerRef.current = setTimeout(tick, delay);
+        } else {
+          timerRef.current = setTimeout(() => { isErase = true; tick(); }, END_PAUSE);
+        }
+      } else {
+        if (index > 0) {
+          index--;
+          setDisplayed(FULL_TEXT.slice(0, index));
+          timerRef.current = setTimeout(tick, ERASE_DELAY);
+        } else {
+          timerRef.current = setTimeout(() => { isErase = false; tick(); }, START_PAUSE);
+        }
+      }
+    }
+
+    timerRef.current = setTimeout(tick, 700);
+    return () => clearTimeout(timerRef.current);
+  }, []);
+
+  return (
+    <>
+      <style>{`
+        @keyframes tpc-blink {
+          0%, 100% { opacity: 1; }
+          50%       { opacity: 0; }
+        }
+        .tpc-root {
+          display: inline-flex;
+          align-items: center;
+          font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+          font-size: 12px;
+          font-weight: 600;
+          letter-spacing: 0.12em;
+          color: #4ecca3;
+          line-height: 1;
+        }
+        .tpc-cursor {
+          display: inline-block;
+          width: 1.5px;
+          height: 1.1em;
+          background: #4ecca3;
+          border-radius: 1px;
+          margin-left: 2px;
+          vertical-align: middle;
+          box-shadow: 0 0 5px #4ecca3;
+          animation: tpc-blink 1.05s step-end infinite;
+          flex-shrink: 0;
+        }
+      `}</style>
+      <span className="tpc-root">
+        {/* Single text node — no per-char spans, so all glyphs render identically */}
+        <span>{displayed}</span>
+        <span className="tpc-cursor" />
+      </span>
+    </>
+  );
+}
 
 export default function HeroSection() {
   const navigate = useNavigate();
@@ -32,9 +113,7 @@ export default function HeroSection() {
           width: 6, height: 6, borderRadius: "50%", background: "#4ecca3",
           boxShadow: "0 0 8px #4ecca3", display: "inline-block",
         }} />
-        <span style={{ fontSize: 13, color: "#4ecca3", fontWeight: 500, letterSpacing: "0.05em", textTransform: "uppercase" }}>
-          Think. Plan. Code.
-        </span>
+        <ThinkPlanCode />
       </div>
 
       <h1 style={{

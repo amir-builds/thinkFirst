@@ -48,6 +48,11 @@ body {
   }
 }
 
+/* Form element text — ensure readability on light/white backgrounds (admin panel) */
+input, textarea, select {
+  color: #111827;
+}
+
 /* Scrollbar styling */
 ::-webkit-scrollbar {
   width: 8px;
