@@ -5,7 +5,7 @@ import toast from "react-hot-toast";
 import Editor from "@monaco-editor/react";
 import { useAuth } from "../contexts/AuthContext";
 
-const API_BASE_URL = "http://localhost:8000/api/v1";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api/v1";
 
 export default function CodeEditor() {
   const { id } = useParams();
