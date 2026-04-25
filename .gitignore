@@ -9,5 +9,16 @@ OAUTH_SETUP_CHECKLIST.md
 OAUTH_SETUP_GUIDE.md
 OAUTH_STATUS_DONE_VS_TODO.md
 googleOAuthCredentials.txt
+
 # GCP Service Account Key — never commit this
 backend/gcp-credentials.json
+
+# Firebase build cache
+frontend/.firebase/
+
+# Frontend build output
+frontend/build/
+
+# Env files
+frontend/.env.local
+backend/.env
