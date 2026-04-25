@@ -19,3 +19,4 @@ jobs:
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_THINKFIRST_488911 }}
           channelId: live
           projectId: thinkfirst-488911
+          entryPoint: frontend
