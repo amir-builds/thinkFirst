@@ -1,5 +1,15 @@
 {
   "projects": {
     "default": "thinkfirst-488911"
-  }
+  },
+  "targets": {
+    "thinkfirst-488911": {
+      "hosting": {
+        "app": [
+          "thinkfirst-app"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }

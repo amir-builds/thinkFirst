@@ -8,6 +8,7 @@ export default function Footer() {
 
   const handleClick = (label) => {
     if (label === "Problems") navigate("/practice");
+    if (label === "GitHub") window.open("https://github.com/amir-builds/thinkFirst", "_blank");
   };
 
   return (
