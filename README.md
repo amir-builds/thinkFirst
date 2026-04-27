@@ -1,11 +1,9 @@
-# ![ThinkFirst Logo](logo.png)
-### Thinking-First Coding Practice Platform
+# ThinkFirst
+### AI-Powered Coding Education Platform
 
-ThinkFirst is a coding practice platform designed to help learners develop strong problem-solving skills by **thinking and planning before writing code**.
+> **Live:** [thinkfirst-app.web.app](https://thinkfirst-app.web.app)
 
-Unlike traditional coding platforms that allow users to immediately start coding, ThinkFirst enforces a planning-first workflow. Learners are encouraged to explain their approach in plain language and receive guided thinking support before the code editor is unlocked.
-
-The platform integrates secure code execution using Judge0 and uses AI as a **supportive mentor** that guides thinking through small reflective questions, without providing solutions or code.
+ThinkFirst is a full-stack coding practice platform that guides learners to **think and plan before writing code**. An AI mentor (powered by Google Gemini) engages students through Socratic questioning — never giving away answers, always building reasoning.
 
 ---
 
@@ -13,239 +11,200 @@ The platform integrates secure code execution using Judge0 and uses AI as a **su
 
 > Good programmers are not fast typers — they are clear thinkers.
 
-ThinkFirst focuses on **how a learner thinks**, not just whether the final output is correct.
+ThinkFirst enforces a **Think → Plan → Code** workflow. Students must articulate their approach before the code editor unlocks, and the AI mentor guides them through any gaps in understanding.
 
 ---
 
 ## Key Features
 
-- 🏠 **Home Page**  
-  Simple landing page with project overview and navigation.
-
-- 💻 **Practice Coding (ThinkFirst Flow)**  
-  Learners must write a clear approach or plan before accessing the code editor.
-
-- 🧠 **ThinkFirst Mentor AI**  
-  AI acts as a guided mentor:  
-  - Asks small reflective questions  
-  - Highlights assumptions or edge cases  
-  - Encourages revision and clarity  
-  - Never provides solutions, algorithms, or code
-
-- ⚡ **Code Execution**  
-  Secure, real-time code execution using a self-hosted Judge0 instance.
-
-- 🔁 **Learning Through Mistakes**  
-  When code fails, learners are guided to reflect on *why* it failed rather than being shown the fix.
-
-- 👨‍💼 **Admin Panel**  
-  Admin dashboard to create, update, and manage practice questions.
-
-- 🔐 **OTP Authentication**  
-  Secure admin login using OTP-based authentication.
-
----
-
-## Learning Philosophy
-
-ThinkFirst is built around the following principles:
-
-- Thinking comes before implementation
-- Planning improves clarity and confidence
-- Mistakes are part of learning
-- AI should support reasoning, not replace it
-
-The platform intentionally avoids features like solution reveal buttons, competitive rankings, or answer generation, in order to promote deeper learning.
+- 🏠 **Home Page** — Landing page with project overview and navigation
+- 🧠 **AI Mentor (Gemini 2.5 Flash)** — Socratic guidance that asks reflective questions, highlights edge cases, and never provides direct solutions or code
+- 💻 **Practice Coding** — Students write their approach first; code editor unlocks after mentor approval
+- ⚡ **Code Execution** — Self-hosted Judge0 supporting **5 languages**: Python, JavaScript, Java, C++, C
+- 📊 **Student Dashboard** — Progress tracking, activity heatmap, solved/attempted/skipped stats
+- 🔖 **Bookmarks & Achievements** — Students can bookmark questions and earn badges
+- 🔐 **Authentication** — Google OAuth, GitHub OAuth, and email/password with JWT
+- 👨‍💼 **Admin Panel** — Full CRUD for questions with up to 10 test cases each, public/draft toggle
+- 🔒 **Admin OTP Login** — Secure admin authentication via email OTP + JWT
 
 ---
 
 ## Tech Stack
 
 ### Backend
-- Node.js + Express
-- MySQL (Dockerized)
-- Redis (Dockerized)
-- Judge0 (self-hosted using Docker)
-- JWT Authentication
-- NodeMailer for OTP-based login
+- **Node.js + Express** — REST API
+- **MySQL 8** — Primary database (Dockerized, connection pooling)
+- **Redis** — Session caching and background jobs
+- **Judge0 1.13.1** — Self-hosted code execution engine (privileged Docker container)
+- **JWT** — Stateless authentication with refresh tokens
+- **Passport.js** — OAuth 2.0 (Google, GitHub)
+- **Nodemailer** — OTP email delivery
+- **Google Gemini 2.5 Flash** — AI mentor
 
 ### Frontend
-- React 18
-- Vite
-- Tailwind CSS
-- Monaco Editor
-- React Router
-- Axios
+- **React 18** + **Vite**
+- **Monaco Editor** — VS Code-grade in-browser code editor
+- **Axios** — HTTP client
+- **React Router v6**
+- **Tailwind CSS**
+
+### Infrastructure
+- **Google Compute Engine** (`e2-standard-2`, europe-west1-b) — Backend + all Docker services
+- **Firebase Hosting** — React frontend (CDN-backed, free tier)
+- **nginx** — Reverse proxy with SSL termination
+- **Let's Encrypt** — Free SSL certificate via Certbot
+- **Docker Compose** — 7-container orchestration
 
 ---
 
-## Getting Started
+## Architecture
+
+```
+                    ┌─────────────────────────┐
+                    │   Firebase Hosting       │
+                    │   (React Frontend)       │
+                    │ thinkfirst-app.web.app   │
+                    └────────────┬────────────┘
+                                 │ HTTPS
+                    ┌────────────▼────────────┐
+                    │   GCE VM (nginx + SSL)  │
+                    │   34-52-156-92.nip.io   │
+                    └────────────┬────────────┘
+                                 │
+                    ┌────────────▼────────────┐
+                    │   Docker Compose Stack  │
+                    │  ┌──────────────────┐   │
+                    │  │  Node.js :8000   │   │
+                    │  ├──────────────────┤   │
+                    │  │  MySQL    :3306  │   │
+                    │  ├──────────────────┤   │
+                    │  │  Redis    :6379  │   │
+                    │  ├──────────────────┤   │
+                    │  │  Judge0   :2358  │   │
+                    │  │  Judge0-Worker   │   │
+                    │  │  Judge0-DB       │   │
+                    │  │  Judge0-Redis    │   │
+                    │  └──────────────────┘   │
+                    └─────────────────────────┘
+```
+
+---
+
+## Getting Started (Local Development)
 
 ### Prerequisites
 - Docker & Docker Compose
 - Node.js 18+
-- npm or yarn
+- npm
 
-### Installation
+### Backend Setup
 
-#### Backend Setup
+```bash
+cd backend
+cp .env.example .env
+# Fill in .env with your credentials
+docker compose up --build
+```
 
-1. Navigate to the backend directory:
-   ```bash
-   cd backend
-   ```
+### Frontend Setup
 
-2. Copy the environment variables file:
-   ```bash
-   cp .env.example .env
-   ```
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
-3. Update `.env` with required configurations.
-
-4. Start Judge0 separately:
-   ```bash
-   docker compose -f docker-compose.judge0.yml up -d
-   ```
-
-5. Start backend services:
-   ```bash
-   docker compose up --build
-   ```
-
-   Or run without Docker:
-   ```bash
-   npm install
-   npm run dev
-   ```
-
-#### Frontend Setup
-
-1. Navigate to the frontend directory:
-   ```bash
-   cd frontend
-   ```
-
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-3. Start the development server:
-   ```bash
-   npm run dev
-   ```
-
-### Usage
-
-Open your browser and navigate to:
+### Local URLs
 - Frontend: [http://localhost:3000](http://localhost:3000)
 - Backend API: [http://localhost:8000](http://localhost:8000)
 
-#### Default Admin Credentials
+### Default Admin Credentials *(development only)*
+- Email: `admin@thinkfirst.com`
+- Password: `admin123`
 
-**Note:** For development/demo purposes only.
+---
 
-- Email: admin@thinkfirst.com
-- Password: admin123
+## Production Deployment
+
+### Backend (GCE VM)
+
+```bash
+# SSH into VM
+gcloud compute ssh thinkfirst-vm --zone=europe-west1-b
+
+# Pull latest and rebuild
+cd ~/thinkFirst && git pull origin main
+cd backend && docker compose up -d --build backend
+```
+
+### Frontend (Firebase Hosting)
+
+```bash
+cd frontend
+npm run build
+firebase deploy --only hosting
+```
+
+### Environment Files
+| File | Location | Purpose |
+|---|---|---|
+| `backend/.env` | VM only (never commit) | Production secrets |
+| `backend/gcp-credentials.json` | VM only (never commit) | GCP service account |
+| `frontend/.env.production` | Local only | `VITE_API_BASE_URL` |
 
 ---
 
 ## API Endpoints
 
-### Admin Routes
-- `POST /api/v1/admin/login` – Admin login
-- `POST /api/v1/admin/verify-otp` – Verify OTP
-- `GET /api/v1/admin/current` – Get current admin
-- `POST /api/v1/admin/logout` – Logout
+### Admin
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/api/v1/admin/login` | Send OTP to admin email |
+| POST | `/api/v1/admin/verify-otp` | Verify OTP, receive JWT |
+| GET | `/api/v1/admin/current` | Get current admin info |
+| POST | `/api/v1/admin/logout` | Logout |
 
-### Question Routes
-- `GET /api/v1/questions/public` – Get public questions
-- `POST /api/v1/questions/create` – Create question (Admin)
-- `GET /api/v1/questions/all` – Get all questions (Admin)
-- `PUT /api/v1/questions/update/:id` – Update question (Admin)
-- `DELETE /api/v1/questions/delete/:id` – Delete question (Admin)
+### Student
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/api/v1/student/register` | Register student |
+| POST | `/api/v1/student/login` | Email/password login |
+| GET | `/api/v1/student/oauth/google` | Google OAuth |
+| GET | `/api/v1/student/oauth/github` | GitHub OAuth |
+| GET | `/api/v1/student/current` | Current student |
+| POST | `/api/v1/student/submit` | Submit solution |
 
-### Code Execution
-- `POST /api/v1/runcode/execute` – Execute code with test cases
-- `GET /api/v1/runcode/languages` – Get supported languages
+### Questions
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/api/v1/questions/public` | Public questions list |
+| GET | `/api/v1/questions/all` | All questions (Admin) |
+| POST | `/api/v1/questions/create` | Create question (Admin) |
+| PUT | `/api/v1/questions/update/:id` | Update question (Admin) |
+| DELETE | `/api/v1/questions/delete/:id` | Delete question (Admin) |
+
+### Code Execution & AI
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/api/v1/runcode/execute` | Run code against test cases |
+| GET | `/api/v1/runcode/languages` | Supported languages |
+| POST | `/api/v1/ai/mentor` | AI mentor chat |
 
 ---
 
 ## Docker Services
 
-- **Backend** – Node.js application (Port 8000)
-- **MySQL** – Application database (Port 3306)
-- **Redis** – Cache and background services (Port 6379)
-- **Judge0** – Code execution engine (Port 2358)
-- **Judge0-DB** – PostgreSQL for Judge0
-- **Judge0-Redis** – Redis for Judge0 workers
+| Service | Image | Port | Purpose |
+|---|---|---|---|
+| backend | custom | 8000 | Node.js API |
+| mysql | mysql:8.0 | 3306 | App database |
+| redis | redis:latest | 6379 | Session cache |
+| judge0 | judge0/judge0:1.13.1 | 2358 | Code execution API |
+| judge0-worker | judge0/judge0:1.13.1 | — | Submission processor |
+| judge0-db | postgres:13 | — | Judge0 database |
+| judge0-redis | redis:6 | — | Judge0 job queue |
 
----
-
-## Project Structure
-
-```
-thinkFirst/
-├── backend/
-│   ├── src/
-│   │   ├── config/
-│   │   │   └── db.js
-│   │   ├── controllers/
-│   │   │   ├── admin.controller.js
-│   │   │   ├── codeExecution.controller.js
-│   │   │   └── question.controller.js
-│   │   ├── mails/
-│   │   │   └── sendAdminOTP.js
-│   │   ├── middlewares/
-│   │   │   └── adminAuth.middleware.js
-│   │   ├── models/
-│   │   │   ├── admin.model.js
-│   │   │   └── question.model.js
-│   │   ├── routes/
-│   │   │   ├── admin.routes.js
-│   │   │   ├── codeExecution.routes.js
-│   │   │   └── question.routes.js
-│   │   ├── services/
-│   │   │   └── judge.service.js
-│   │   ├── utils/
-│   │   │   ├── apiError.js
-│   │   │   ├── apiResponse.js
-│   │   │   ├── asyncHandler.js
-│   │   │   ├── compare.js
-│   │   │   └── redisClient.js
-│   │   └── index.js
-│   ├── sql/
-│   │   ├── 00-admins.sql
-│   │   ├── 10-questions.sql
-│   │   └── init.sql
-│   ├── .env
-│   ├── .env.example
-│   ├── Dockerfile
-│   ├── docker-compose.judge0.yml
-│   ├── docker-compose.yml
-│   ├── package.json
-│   └── node_modules/
-└── frontend/
-    ├── src/
-    │   ├── admin/
-    │   │   ├── AdminDashboard.jsx
-    │   │   └── AdminLogin.jsx
-    │   ├── components/
-    │   ├── pages/
-    │   │   ├── CodeEditor.jsx
-    │   │   ├── Home.jsx
-    │   │   └── Practice.jsx
-    │   ├── App.jsx
-    │   ├── index.css
-    │   └── main.jsx
-    ├── public/
-    ├── index.html
-    ├── package.json
-    ├── postcss.config.js
-    ├── tailwind.config.js
-    ├── vite.config.js
-    └── node_modules/
-```
+> **Note:** Judge0 requires `privileged: true` and cgroup v1 (`systemd.unified_cgroup_hierarchy=0`) for Linux kernel-level sandboxing.
 
 ---
 
